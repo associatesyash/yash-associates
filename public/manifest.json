@@ -1,0 +1,10 @@
+{
+  "name": "YASH ASSOCIATES - Wholesale ERP",
+  "short_name": "YASH ERP",
+  "description": "Ladies Undergarment Wholesale Management Software",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e3a5f",
+  "icons": []
+}
