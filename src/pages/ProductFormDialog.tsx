@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -129,6 +130,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? 'Edit Product' : 'New Product'}</DialogTitle>
+          <DialogDescription>Enter the product variant and pricing details.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid grid-cols-2 gap-4">

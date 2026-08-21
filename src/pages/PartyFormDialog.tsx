@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -97,6 +98,7 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{party ? 'Edit Party' : 'New Party'}</DialogTitle>
+          <DialogDescription>Enter customer contact and credit details.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">

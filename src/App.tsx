@@ -14,6 +14,14 @@ import type { Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { toast } from 'sonner';
 
+function syncErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const detail = error as { message?: string; details?: string; hint?: string; code?: string };
+    return [detail.message, detail.details, detail.hint, detail.code ? `code ${detail.code}` : ''].filter(Boolean).join(' | ');
+  }
+  return error instanceof Error ? error.message : 'Cloud sync failed';
+}
+
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const PartiesPage = lazy(() => import('@/pages/PartiesPage').then(m => ({ default: m.PartiesPage })));
 const PartyProfilePage = lazy(() => import('@/pages/PartyProfilePage').then(m => ({ default: m.PartyProfilePage })));
@@ -85,7 +93,7 @@ function App() {
         try {
           await syncLocalData(currentSession);
         } catch (error) {
-          toast.error(error instanceof Error ? `Cloud sync failed: ${error.message}` : 'Cloud sync failed');
+          toast.error(`Cloud sync failed: ${syncErrorMessage(error)}`);
         }
       }
     })();
@@ -94,7 +102,7 @@ function App() {
       setSession(nextSession);
       if (nextSession) {
         void syncLocalData(nextSession).catch((error) => {
-          toast.error(error instanceof Error ? `Cloud sync failed: ${error.message}` : 'Cloud sync failed');
+          toast.error(`Cloud sync failed: ${syncErrorMessage(error)}`);
         });
       }
     });
@@ -102,7 +110,7 @@ function App() {
     const handleSync = () => {
       if (sessionRef.current) {
         void syncLocalData(sessionRef.current).catch((error) => {
-          toast.error(error instanceof Error ? `Cloud sync failed: ${error.message}` : 'Cloud sync failed');
+          toast.error(`Cloud sync failed: ${syncErrorMessage(error)}`);
         });
       }
     };

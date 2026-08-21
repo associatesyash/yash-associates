@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { getStockMovements } from '@/services/stockService';
 import { getCurrentStock } from '@/services/stockService';
@@ -44,6 +45,7 @@ export function StockHistoryDialog({ open, onOpenChange, product }: { open: bool
           <DialogTitle>Stock History - {product.code}</DialogTitle>
         </DialogHeader>
         <div className="mb-4 p-3 bg-muted rounded-lg flex items-center justify-between">
+          <DialogDescription>Review stock movements for this product.</DialogDescription>
           <div>
             <span className="text-sm text-muted-foreground">Current Stock: </span>
             <span className="text-lg font-bold">{currentStock} {product.unit}</span>
