@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, useState } from 'react';
+import React, { useEffect, lazy, Suspense, useState } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
@@ -34,6 +34,26 @@ function PageLoader() {
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
     </div>
   );
+}
+
+class ChunkLoadBoundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(error: Error) {
+    if (error.message.includes('dynamically imported module')) return { failed: true };
+    throw error;
+  }
+
+  componentDidCatch() {
+    if (!sessionStorage.getItem('yash-chunk-reload')) {
+      sessionStorage.setItem('yash-chunk-reload', '1');
+      window.location.reload();
+    }
+  }
+
+  render() {
+    return this.state.failed ? <PageLoader /> : this.props.children;
+  }
 }
 
 function App() {
@@ -126,9 +146,11 @@ function App() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <Suspense fallback={<PageLoader />}>
-            {renderPage()}
-          </Suspense>
+          <ChunkLoadBoundary>
+            <Suspense fallback={<PageLoader />}>
+              {renderPage()}
+            </Suspense>
+          </ChunkLoadBoundary>
         </main>
       </div>
       <Toaster position="bottom-right" />

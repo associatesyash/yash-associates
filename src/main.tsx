@@ -5,9 +5,10 @@ import './index.css';
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((registration) => {
-      void registration.update();
-    }).catch(() => undefined);
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => void registration.unregister());
+    });
+    caches.keys().then((keys) => keys.forEach((key) => void caches.delete(key)));
   });
 }
 
