@@ -24,7 +24,11 @@ function toCamelCase(value: string): string {
 function toCloudRow(row: Record<string, unknown>, ownerId: string) {
   const result: Record<string, unknown> = { owner_id: ownerId };
   for (const [key, value] of Object.entries(row)) {
-    if (key !== 'owner_id') result[toSnakeCase(key)] = value;
+    if (key === 'owner_id') continue;
+    const cloudKey = toSnakeCase(key);
+    result[cloudKey] = ['date', 'created_at', 'updated_at'].includes(cloudKey) && typeof value === 'number'
+      ? new Date(value).toISOString()
+      : value;
   }
   return result;
 }
@@ -32,7 +36,11 @@ function toCloudRow(row: Record<string, unknown>, ownerId: string) {
 function toLocalRow(row: Record<string, unknown>) {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
-    if (key !== 'owner_id') result[toCamelCase(key)] = value;
+    if (key === 'owner_id') continue;
+    const localKey = toCamelCase(key);
+    result[localKey] = ['date', 'createdAt', 'updatedAt'].includes(localKey) && typeof value === 'string'
+      ? new Date(value).getTime()
+      : value;
   }
   return result;
 }
