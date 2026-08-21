@@ -28,7 +28,7 @@ interface ProductFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: Product | null;
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
 }
 
 export function ProductFormDialog({ open, onOpenChange, product, onSaved }: ProductFormDialogProps) {
@@ -116,7 +116,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
         active,
       });
       toast.success(product ? 'Product updated' : 'Product created');
-      onSaved();
+      await onSaved();
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message || 'Failed to save product');

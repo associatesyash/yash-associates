@@ -30,11 +30,14 @@ export function PartiesPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const all = await getParties();
-    setParties(all);
-    const outstanding = await getPartyOutstandingBatch(all.map((p) => p.id));
-    setOutstandingMap(outstanding);
-    setLoading(false);
+    try {
+      const all = await getParties();
+      setParties(all);
+      const outstanding = await getPartyOutstandingBatch(all.map((p) => p.id));
+      setOutstandingMap(outstanding);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

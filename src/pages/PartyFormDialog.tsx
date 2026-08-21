@@ -20,7 +20,7 @@ interface PartyFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   party: Party | null;
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
 }
 
 export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFormDialogProps) {
@@ -84,7 +84,7 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
         active,
       });
       toast.success(party ? 'Party updated' : 'Party created');
-      onSaved();
+      await onSaved();
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message || 'Failed to save party');

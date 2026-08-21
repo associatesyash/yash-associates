@@ -10,7 +10,7 @@ const TABLES = [
 
 const TABLE_NAMES: Record<string, string> = {
   invoiceItems: 'invoice_items', paymentAllocations: 'payment_allocations', purchaseItems: 'purchase_items',
-  supplierPayments: 'supplier_payments', stockMovements: 'stock_movements', auditLogs: 'audit_logs',
+  supplierPayments: 'supplier_payments', returnItems: 'return_items', stockMovements: 'stock_movements', auditLogs: 'audit_logs',
 };
 
 let activeSync: Promise<{ uploaded: number; downloaded: number }> | null = null;
@@ -73,7 +73,11 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
     const cloudTable = TABLE_NAMES[localTable] || localTable;
     const localRows = await (db as unknown as Record<string, { toArray: () => Promise<Record<string, unknown>[]> }>)[localTable].toArray();
     const { data: cloudRows, error: readError } = await client.from(cloudTable).select('*');
-    if (readError) throw readError;
+    if (readError) {
+      // Allow the rest of the ERP to sync if an optional table has not been migrated yet.
+      if (readError.code === 'PGRST205') continue;
+      throw readError;
+    }
 
     const localIds = new Set(localRows.map((row) => row.id));
     const remoteIds = new Set((cloudRows || []).map((row) => row.id));
@@ -81,7 +85,10 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
 
     if (rowsToUpload.length > 0) {
       const { error } = await client.from(cloudTable).upsert(rowsToUpload.map((row) => toCloudRow(row, session.user.id)));
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST205') continue;
+        throw error;
+      }
       uploaded += rowsToUpload.length;
     }
 
