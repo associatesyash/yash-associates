@@ -2,6 +2,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { formatDate } from '@/utils/format';
 import { Menu, Wifi, WifiOff, Cloud, Database } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export function Header() {
   const { toggleSidebar, online } = useUIStore();
@@ -30,8 +31,8 @@ export function Header() {
 
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted text-xs font-medium">
-          <Database className="h-3.5 w-3.5 text-success" />
-          <span className="hidden sm:inline">Data Saved Locally</span>
+          {isSupabaseConfigured ? <Cloud className="h-3.5 w-3.5 text-success" /> : <Database className="h-3.5 w-3.5 text-success" />}
+          <span className="hidden sm:inline">{isSupabaseConfigured ? 'Cloud + Local' : 'Data Saved Locally'}</span>
         </div>
         <div
           className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium ${

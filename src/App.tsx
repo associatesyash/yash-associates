@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, useState } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
@@ -7,6 +7,11 @@ import { seedDemoData } from '@/services/demoDataService';
 import { getParties } from '@/services/partyService';
 import { Toaster } from '@/components/ui/sonner';
 import { Loader2 } from 'lucide-react';
+import { AuthPage } from '@/components/auth/AuthPage';
+import { getSession, onAuthStateChange } from '@/services/authService';
+import { syncLocalData } from '@/services/cloudSyncService';
+import type { Session } from '@supabase/supabase-js';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const PartiesPage = lazy(() => import('@/pages/PartiesPage').then(m => ({ default: m.PartiesPage })));
@@ -32,6 +37,8 @@ function PageLoader() {
 
 function App() {
   const { currentPage, pageParam, setOnline } = useUIStore();
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -39,20 +46,44 @@ function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Initialize database and seed demo data on first load
+    let cancelled = false;
+    // Initialize local metadata, then authenticate and reconcile local/cloud records.
     (async () => {
+      const currentSession = isSupabaseConfigured ? await getSession() : null;
+      if (cancelled) return;
+      setSession(currentSession);
+      setAuthReady(true);
       await seedDefaultMetadata();
       const parties = await getParties();
       if (parties.length === 0) {
         await seedDemoData();
       }
+      if (currentSession) await syncLocalData(currentSession);
     })();
 
+    const authSubscription = onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      if (nextSession) void syncLocalData(nextSession);
+    });
+
+    const handleSync = () => {
+      if (session) void syncLocalData(session);
+    };
+    window.addEventListener('online', handleSync);
+    const syncTimer = window.setInterval(handleSync, 30000);
+
     return () => {
+      cancelled = true;
+      authSubscription.data.subscription.unsubscribe();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleSync);
+      window.clearInterval(syncTimer);
     };
-  }, [setOnline]);
+  }, [setOnline, session]);
+
+  if (!authReady) return <PageLoader />;
+  if (isSupabaseConfigured && !session) return <AuthPage />;
 
   const renderPage = () => {
     switch (currentPage) {

@@ -307,3 +307,27 @@ alter table public.stock_movements enable row level security;
 alter table public.expenses enable row level security;
 alter table public.settings enable row level security;
 alter table public.audit_logs enable row level security;
+
+-- Ownership migration for authenticated cloud sync. Run this block after the
+-- base schema if the tables already exist in your project.
+do $$
+declare
+  table_name text;
+begin
+  foreach table_name in array array[
+    'parties', 'products', 'suppliers', 'categories', 'brands', 'invoices',
+    'invoice_items', 'payments', 'payment_allocations', 'purchases',
+    'purchase_items', 'supplier_payments', 'returns', 'return_items',
+    'stock_movements', 'expenses', 'settings', 'audit_logs'
+  ] loop
+    execute format('alter table public.%I add column if not exists owner_id uuid references auth.users(id) default auth.uid()', table_name);
+    execute format('drop policy if exists %I on public.%I', table_name || '_owner_select', table_name);
+    execute format('drop policy if exists %I on public.%I', table_name || '_owner_insert', table_name);
+    execute format('drop policy if exists %I on public.%I', table_name || '_owner_update', table_name);
+    execute format('drop policy if exists %I on public.%I', table_name || '_owner_delete', table_name);
+    execute format('create policy %I on public.%I for select to authenticated using (owner_id = auth.uid())', table_name || '_owner_select', table_name);
+    execute format('create policy %I on public.%I for insert to authenticated with check (owner_id = auth.uid())', table_name || '_owner_insert', table_name);
+    execute format('create policy %I on public.%I for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid())', table_name || '_owner_update', table_name);
+    execute format('create policy %I on public.%I for delete to authenticated using (owner_id = auth.uid())', table_name || '_owner_delete', table_name);
+  end loop;
+end $$;

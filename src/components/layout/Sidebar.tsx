@@ -14,7 +14,10 @@ import {
   Settings,
   X,
   Sparkles,
+  LogOut,
 } from 'lucide-react';
+import { signOut } from '@/services/authService';
+import { toast } from 'sonner';
 
 interface NavItem {
   key: PageKey;
@@ -97,6 +100,13 @@ export function Sidebar() {
         </nav>
 
         <div className="px-5 py-4 border-t border-white/10">
+          <button
+            className="mb-3 flex w-full items-center gap-2 text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground"
+            onClick={() => signOut().catch((error) => toast.error(error instanceof Error ? error.message : 'Unable to sign out'))}
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Sign out</span>
+          </button>
           <div className="flex items-center gap-2 text-xs text-sidebar-foreground/50">
             <Sparkles className="h-3 w-3" />
             <span>Offline-First ERP v1.0</span>
