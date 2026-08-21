@@ -66,6 +66,12 @@ export function PartiesPage() {
     setFormOpen(true);
   };
 
+  const handlePartySaved = async () => {
+    setSearch('');
+    setPageState(0);
+    await load();
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -207,7 +213,7 @@ export function PartiesPage() {
         </Card>
       )}
 
-      <PartyFormDialog open={formOpen} onOpenChange={setFormOpen} party={editParty} onSaved={load} />
+      <PartyFormDialog open={formOpen} onOpenChange={setFormOpen} party={editParty} onSaved={handlePartySaved} />
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
