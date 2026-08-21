@@ -73,6 +73,9 @@
   .netlify-badge,
   #netlify-badge,
   #netlify-drawer,
+  body > [id*="netlify"],
+  body > [class*="netlify"],
+  iframe[title*="Netlify"],
   [id^="netlify-"] a,
   a[href*="netlify.com"]:has(img[alt*="Netlify"]) {
     display: none !important;

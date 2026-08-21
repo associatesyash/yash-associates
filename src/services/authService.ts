@@ -21,6 +21,12 @@ export async function signUp(email: string, password: string): Promise<boolean> 
   return Boolean(data.session);
 }
 
+export async function resendSignupConfirmation(email: string): Promise<void> {
+  if (!supabase) throw new Error('Cloud configuration is missing');
+  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  if (error) throw error;
+}
+
 export async function signOut(): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.auth.signOut();
