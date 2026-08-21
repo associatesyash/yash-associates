@@ -13,6 +13,10 @@ const TABLE_NAMES: Record<string, string> = {
   supplierPayments: 'supplier_payments', stockMovements: 'stock_movements', auditLogs: 'audit_logs',
 };
 
+let activeSync: Promise<{ uploaded: number; downloaded: number }> | null = null;
+let lastSyncAt = 0;
+const SYNC_COOLDOWN_MS = 10000;
+
 function toSnakeCase(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
@@ -47,13 +51,28 @@ function toLocalRow(row: Record<string, unknown>) {
 
 export async function syncLocalData(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   if (!supabase || !session.user) return { uploaded: 0, downloaded: 0 };
+  if (activeSync) return activeSync;
+  if (Date.now() - lastSyncAt < SYNC_COOLDOWN_MS) return { uploaded: 0, downloaded: 0 };
+
+  activeSync = runSync(session);
+  try {
+    return await activeSync;
+  } finally {
+    lastSyncAt = Date.now();
+    activeSync = null;
+  }
+}
+
+async function runSync(session: Session): Promise<{ uploaded: number; downloaded: number }> {
+  const client = supabase;
+  if (!client || !session.user) return { uploaded: 0, downloaded: 0 };
   let uploaded = 0;
   let downloaded = 0;
 
   for (const localTable of TABLES) {
     const cloudTable = TABLE_NAMES[localTable] || localTable;
     const localRows = await (db as unknown as Record<string, { toArray: () => Promise<Record<string, unknown>[]> }>)[localTable].toArray();
-    const { data: cloudRows, error: readError } = await supabase.from(cloudTable).select('*');
+    const { data: cloudRows, error: readError } = await client.from(cloudTable).select('*');
     if (readError) throw readError;
 
     const localIds = new Set(localRows.map((row) => row.id));
@@ -61,7 +80,7 @@ export async function syncLocalData(session: Session): Promise<{ uploaded: numbe
     const rowsToUpload = localRows.filter((row) => !remoteIds.has(row.id) || Number(row.updatedAt || 0) >= Number(new Date(cloudRows?.find((remote) => remote.id === row.id)?.updated_at || 0)));
 
     if (rowsToUpload.length > 0) {
-      const { error } = await supabase.from(cloudTable).upsert(rowsToUpload.map((row) => toCloudRow(row, session.user.id)));
+      const { error } = await client.from(cloudTable).upsert(rowsToUpload.map((row) => toCloudRow(row, session.user.id)));
       if (error) throw error;
       uploaded += rowsToUpload.length;
     }

@@ -1,4 +1,4 @@
-import React, { useEffect, lazy, Suspense, useState } from 'react';
+import React, { useEffect, lazy, Suspense, useRef, useState } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
@@ -60,6 +60,8 @@ function App() {
   const { currentPage, pageParam, setOnline } = useUIStore();
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const sessionRef = useRef<Session | null>(null);
+  sessionRef.current = session;
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -98,8 +100,8 @@ function App() {
     });
 
     const handleSync = () => {
-      if (session) {
-        void syncLocalData(session).catch((error) => {
+      if (sessionRef.current) {
+        void syncLocalData(sessionRef.current).catch((error) => {
           toast.error(error instanceof Error ? `Cloud sync failed: ${error.message}` : 'Cloud sync failed');
         });
       }
@@ -115,7 +117,7 @@ function App() {
       window.removeEventListener('online', handleSync);
       window.clearInterval(syncTimer);
     };
-  }, [setOnline, session]);
+  }, [setOnline]);
 
   if (!authReady) return <PageLoader />;
   if (isSupabaseConfigured && !session) return <AuthPage />;
