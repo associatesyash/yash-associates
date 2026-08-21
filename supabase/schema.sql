@@ -35,8 +35,7 @@ create table if not exists public.products (
   description text not null default '',
   active boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (code)
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.suppliers (

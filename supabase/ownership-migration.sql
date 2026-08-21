@@ -24,3 +24,9 @@ begin
     execute format('alter table public.%I enable row level security', table_name);
   end loop;
 end $$;
+
+-- Product codes may repeat across size/color variants. The local app identifies
+-- a variant by its full product attributes, not by code alone.
+alter table public.products drop constraint if exists products_code_key;
+drop index if exists public.products_code_key;
+create index if not exists products_code_idx on public.products (code);
