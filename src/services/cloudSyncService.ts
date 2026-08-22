@@ -79,6 +79,14 @@ function remapReferences(table: string, row: Record<string, unknown>, idRemaps: 
   return mapped;
 }
 
+function withoutOptionalPurchaseFields(row: Record<string, unknown>) {
+  const legacyRow = { ...row };
+  delete legacyRow.mrp;
+  delete legacyRow.purchase_rate;
+  delete legacyRow.sale_rate;
+  return legacyRow;
+}
+
 export async function syncLocalData(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   if (!supabase || !session.user) return { uploaded: 0, downloaded: 0 };
   if (activeSync) return activeSync;
@@ -132,7 +140,11 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
     });
 
     if (deduplicatedRows.length > 0) {
-      const { error } = await client.from(cloudTable).upsert(deduplicatedRows.map((row) => toCloudRow(remapReferences(cloudTable, row, idRemaps), session.user.id)));
+      const rowsForUpload = deduplicatedRows.map((row) => toCloudRow(remapReferences(cloudTable, row, idRemaps), session.user.id));
+      let { error } = await client.from(cloudTable).upsert(rowsForUpload);
+      if (error?.code === 'PGRST204' && cloudTable === 'purchase_items') {
+        ({ error } = await client.from(cloudTable).upsert(rowsForUpload.map(withoutOptionalPurchaseFields)));
+      }
       if (error) {
         if (error.code === 'PGRST205') continue;
         throw error;
