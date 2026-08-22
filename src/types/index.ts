@@ -132,6 +132,9 @@ export interface PurchaseItem extends BaseEntity {
   unit: string;
   qty: number;
   rate: number;
+  mrp: number;
+  purchaseRate: number;
+  saleRate: number;
   discount: number;
   amount: number;
 }

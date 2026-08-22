@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { saveProduct } from '@/services/productService';
-import { getCategories, getBrands, addCategory, addBrand, DEFAULT_SIZES, DEFAULT_COLORS } from '@/services/settingsService';
+import { getCategories, getBrands, addCategory, addBrand, DEFAULT_SIZES } from '@/services/settingsService';
 import { toast } from 'sonner';
 import type { Product } from '@/types';
 
@@ -37,7 +37,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
   const [brand, setBrand] = useState('');
   const [design, setDesign] = useState('');
   const [size, setSize] = useState('');
-  const [color, setColor] = useState('');
   const [unit, setUnit] = useState('Piece');
   const [purchaseRate, setPurchaseRate] = useState('0');
   const [wholesaleRate, setWholesaleRate] = useState('0');
@@ -66,7 +65,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
       setBrand(product.brand);
       setDesign(product.design);
       setSize(product.size);
-      setColor(product.color);
       setUnit(product.unit);
       setPurchaseRate(String(product.purchaseRate));
       setWholesaleRate(String(product.wholesaleRate));
@@ -76,7 +74,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
       setDescription(product.description);
       setActive(product.active);
     } else {
-      setCode(''); setCategory(''); setBrand(''); setDesign(''); setSize(''); setColor(''); setUnit('Piece');
+      setCode(''); setCategory(''); setBrand(''); setDesign(''); setSize(''); setUnit('Piece');
       setPurchaseRate('0'); setWholesaleRate('0'); setMrp('0'); setOpeningStock('0'); setMinStock('0'); setDescription(''); setActive(true);
     }
     setErrors({});
@@ -105,7 +103,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
         brand,
         design: design.trim(),
         size,
-        color,
+        color: product?.color || '',
         unit,
         purchaseRate: Number(purchaseRate) || 0,
         wholesaleRate: Number(wholesaleRate) || 0,
@@ -162,27 +160,18 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
               {errors.brand && <p className="text-xs text-destructive">{errors.brand}</p>}
             </div>
             <div className="grid gap-2">
-              <Label>Design / Model <span className="text-destructive">*</span></Label>
+              <Label>Product Name <span className="text-destructive">*</span></Label>
               <Input value={design} onChange={(e) => setDesign(e.target.value)} placeholder="e.g. 105" />
               {errors.design && <p className="text-xs text-destructive">{errors.design}</p>}
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Size</Label>
               <Select value={size} onValueChange={setSize}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
                   {DEFAULT_SIZES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Color</Label>
-              <Select value={color} onValueChange={setColor}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {DEFAULT_COLORS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -206,7 +195,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
               {errors.purchaseRate && <p className="text-xs text-destructive">{errors.purchaseRate}</p>}
             </div>
             <div className="grid gap-2">
-              <Label>Wholesale Rate (₹)</Label>
+              <Label>Sale Rate (₹)</Label>
               <Input type="number" value={wholesaleRate} onChange={(e) => setWholesaleRate(e.target.value)} />
               {errors.wholesaleRate && <p className="text-xs text-destructive">{errors.wholesaleRate}</p>}
             </div>

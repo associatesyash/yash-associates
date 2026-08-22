@@ -162,7 +162,7 @@ export async function seedDemoData(): Promise<void> {
     id: uid(), billNo: 'PUR001', date: pur1Date, supplierId: suppliers[0].id, supplierName: suppliers[0].name, subtotal: pur1Total, discountAmount: 0, taxAmount: 0, roundOff: 0, grandTotal: pur1Total, paymentMade: pur1Total, outstanding: 0, status: 'Paid', notes: '', paymentMode: 'Bank Transfer', paymentRef: 'BT001', cancelled: false, createdAt: pur1Date, updatedAt: pur1Date,
   };
   await db.purchases.put(pur1);
-  const pur1Item: PurchaseItem = { id: uid(), purchaseId: pur1.id, productId: pur1Prod.id, productCode: pur1Prod.code, productDesc: `${pur1Prod.category} ${pur1Prod.brand} ${pur1Prod.design} ${pur1Prod.size} ${pur1Prod.color}`, category: pur1Prod.category, brand: pur1Prod.brand, size: pur1Prod.size, color: pur1Prod.color, unit: 'Piece', qty: 20, rate: pur1Prod.purchaseRate, discount: 0, amount: pur1Total, createdAt: pur1Date, updatedAt: pur1Date };
+  const pur1Item: PurchaseItem = { id: uid(), purchaseId: pur1.id, productId: pur1Prod.id, productCode: pur1Prod.code, productDesc: `${pur1Prod.category} ${pur1Prod.brand} ${pur1Prod.design} ${pur1Prod.size} ${pur1Prod.color}`, category: pur1Prod.category, brand: pur1Prod.brand, size: pur1Prod.size, color: pur1Prod.color, unit: 'Piece', qty: 20, rate: pur1Prod.purchaseRate, mrp: pur1Prod.mrp, purchaseRate: pur1Prod.purchaseRate, saleRate: pur1Prod.wholesaleRate, discount: 0, amount: pur1Total, createdAt: pur1Date, updatedAt: pur1Date };
   await db.purchaseItems.put(pur1Item);
   await addStockMovement(pur1Prod.id, 'Purchase', 20, true, pur1.billNo, pur1.id, `Purchase from ${suppliers[0].name}`, pur1Date);
 

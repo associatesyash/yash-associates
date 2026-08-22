@@ -29,7 +29,6 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [openingBalance, setOpeningBalance] = useState('0');
-  const [creditLimit, setCreditLimit] = useState('0');
   const [notes, setNotes] = useState('');
   const [active, setActive] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -42,7 +41,6 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
       setAddress(party.address);
       setCity(party.city);
       setOpeningBalance(String(party.openingBalance));
-      setCreditLimit(String(party.creditLimit));
       setNotes(party.notes);
       setActive(party.active);
     } else {
@@ -51,7 +49,6 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
       setAddress('');
       setCity('');
       setOpeningBalance('0');
-      setCreditLimit('0');
       setNotes('');
       setActive(true);
     }
@@ -63,7 +60,6 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
     if (!name.trim()) errs.name = 'Party name is required';
     if (mobile && !/^\d{10}$/.test(mobile)) errs.mobile = 'Mobile must be 10 digits';
     if (isNaN(Number(openingBalance))) errs.openingBalance = 'Invalid amount';
-    if (isNaN(Number(creditLimit))) errs.creditLimit = 'Invalid amount';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -79,7 +75,7 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
         address: address.trim(),
         city: city.trim(),
         openingBalance: Number(openingBalance) || 0,
-        creditLimit: Number(creditLimit) || 0,
+        creditLimit: party?.creditLimit || 0,
         notes: notes.trim(),
         active,
       });
@@ -98,7 +94,7 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{party ? 'Edit Party' : 'New Party'}</DialogTitle>
-          <DialogDescription>Enter customer contact and credit details.</DialogDescription>
+          <DialogDescription>Enter customer contact details.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
@@ -121,17 +117,10 @@ export function PartyFormDialog({ open, onOpenChange, party, onSaved }: PartyFor
             <Label htmlFor="address">Address</Label>
             <Textarea id="address" value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="Full address" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="openingBalance">Opening Due (₹)</Label>
-              <Input id="openingBalance" type="number" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
-              {errors.openingBalance && <p className="text-xs text-destructive">{errors.openingBalance}</p>}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="creditLimit">Credit Limit (₹)</Label>
-              <Input id="creditLimit" type="number" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} />
-              {errors.creditLimit && <p className="text-xs text-destructive">{errors.creditLimit}</p>}
-            </div>
+          <div className="grid gap-2">
+            <Label htmlFor="openingBalance">Opening Due (₹)</Label>
+            <Input id="openingBalance" type="number" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
+            {errors.openingBalance && <p className="text-xs text-destructive">{errors.openingBalance}</p>}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="notes">Notes</Label>

@@ -84,6 +84,9 @@ export interface PurchaseDraft {
     unit: string;
     qty: number;
     rate: number;
+    mrp: number;
+    purchaseRate: number;
+    saleRate: number;
     discount: number;
     amount: number;
   }[];
@@ -97,8 +100,8 @@ export interface PurchaseDraft {
 export async function createPurchase(draft: PurchaseDraft): Promise<string> {
   if (!draft.supplierId) throw new Error('Please select a supplier');
   if (draft.items.length === 0) throw new Error('Please add at least one item');
-  if (draft.items.some((item) => item.qty <= 0 || item.rate < 0 || item.discount < 0)) {
-    throw new Error('Quantity must be greater than zero and rates or discounts cannot be negative');
+  if (draft.items.some((item) => item.qty <= 0 || item.mrp <= 0 || item.purchaseRate <= 0 || item.saleRate <= 0 || item.discount < 0)) {
+    throw new Error('Quantity and MRP, purchase rate, and sale rate must be greater than zero');
   }
 
   const settings = await getSettings();
@@ -157,6 +160,9 @@ export async function createPurchase(draft: PurchaseDraft): Promise<string> {
     unit: item.unit,
     qty: item.qty,
     rate: item.rate,
+    mrp: item.mrp,
+    purchaseRate: item.purchaseRate,
+    saleRate: item.saleRate,
     discount: item.discount,
     amount: item.amount,
     createdAt: now(),

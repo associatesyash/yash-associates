@@ -90,7 +90,7 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
 
 export const DEFAULT_BRANDS = ['Brand A', 'Brand B', 'Brand C', 'Jockey', 'Enamor', 'Zivame'];
 
-export const DEFAULT_SIZES = ['32', '34', '36', '38', '40', '42', 'S', 'M', 'L', 'XL', 'XXL', 'Free'];
+export const DEFAULT_SIZES = ['28', '30', '32', '34', '36', '38', '40', '42', '44', 'M', 'L', 'XL', 'XXL'];
 
 export const DEFAULT_COLORS = ['Black', 'White', 'Skin', 'Red', 'Blue', 'Pink', 'Grey', 'Beige'];
 

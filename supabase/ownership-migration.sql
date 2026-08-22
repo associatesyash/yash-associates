@@ -30,3 +30,7 @@ end $$;
 alter table public.products drop constraint if exists products_code_key;
 drop index if exists public.products_code_key;
 create index if not exists products_code_idx on public.products (code);
+
+alter table public.purchase_items add column if not exists mrp numeric(14,2) not null default 0;
+alter table public.purchase_items add column if not exists purchase_rate numeric(14,2) not null default 0;
+alter table public.purchase_items add column if not exists sale_rate numeric(14,2) not null default 0;

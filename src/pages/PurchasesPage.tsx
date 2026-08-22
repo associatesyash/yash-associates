@@ -58,8 +58,9 @@ export function PurchasesPage() {
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [selProductId, setSelProductId] = useState('');
   const [pQty, setPQty] = useState('1');
-  const [pRate, setPRate] = useState('0');
-  const [pDiscount, setPDiscount] = useState('0');
+  const [pMrp, setPMrp] = useState('0');
+  const [pPurchaseRate, setPPurchaseRate] = useState('0');
+  const [pSaleRate, setPSaleRate] = useState('0');
   const [discountAmount, setDiscountAmount] = useState('0');
   const [paymentMade, setPaymentMade] = useState('0');
   const [paymentMode, setPaymentMode] = useState('Cash');
@@ -163,7 +164,9 @@ export function PurchasesPage() {
   const handleProductSelect = (p: Product) => {
     setSelProductId(p.id);
     setProductSearch(`${p.code} - ${p.category} ${p.brand} ${p.design} ${p.size} ${p.color}`);
-    setPRate(String(p.purchaseRate));
+    setPMrp(String(p.mrp));
+    setPPurchaseRate(String(p.purchaseRate));
+    setPSaleRate(String(p.wholesaleRate));
     setShowProductDropdown(false);
   };
 
@@ -173,14 +176,16 @@ export function PurchasesPage() {
     if (!product) return;
     const q = Number(pQty) || 0;
     if (q <= 0) { toast.error('Quantity must be > 0'); return; }
-    const r = Number(pRate) || 0;
-    const d = Number(pDiscount) || 0;
+    const mrp = Number(pMrp) || 0;
+    const purchaseRate = Number(pPurchaseRate) || 0;
+    const saleRate = Number(pSaleRate) || 0;
+    if (mrp <= 0 || purchaseRate <= 0 || saleRate <= 0) { toast.error('MRP, purchase rate, and sale rate are mandatory'); return; }
     setPItems([...pItems, {
       productId: product.id, productCode: product.code, productDesc: `${product.category} ${product.brand} ${product.design} ${product.size} ${product.color}`,
       category: product.category, brand: product.brand, size: product.size, color: product.color, unit: product.unit,
-      qty: q, rate: r, discount: d, amount: q * r - d,
+      qty: q, rate: purchaseRate, mrp, purchaseRate, saleRate, discount: 0, amount: q * purchaseRate,
     }]);
-    setSelProductId(''); setProductSearch(''); setPQty('1'); setPRate('0'); setPDiscount('0');
+    setSelProductId(''); setProductSearch(''); setPQty('1'); setPMrp('0'); setPPurchaseRate('0'); setPSaleRate('0');
   };
 
   const subtotal = pItems.reduce((s, i) => s + i.amount, 0);
@@ -282,9 +287,10 @@ export function PurchasesPage() {
                   </div>
                   {selProductId && (
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
-                      <div className="grid gap-1"><Label className="text-xs">Rate</Label><Input type="number" value={pRate} onChange={(e) => setPRate(e.target.value)} className="h-9" /></div>
+                      <div className="grid gap-1"><Label className="text-xs">MRP *</Label><Input type="number" value={pMrp} onChange={(e) => setPMrp(e.target.value)} className="h-9" /></div>
+                      <div className="grid gap-1"><Label className="text-xs">Purchase Rate *</Label><Input type="number" value={pPurchaseRate} onChange={(e) => setPPurchaseRate(e.target.value)} className="h-9" /></div>
+                      <div className="grid gap-1"><Label className="text-xs">Sale Rate *</Label><Input type="number" value={pSaleRate} onChange={(e) => setPSaleRate(e.target.value)} className="h-9" /></div>
                       <div className="grid gap-1"><Label className="text-xs">Qty</Label><Input type="number" value={pQty} onChange={(e) => setPQty(e.target.value)} className="h-9" /></div>
-                      <div className="grid gap-1"><Label className="text-xs">Disc</Label><Input type="number" value={pDiscount} onChange={(e) => setPDiscount(e.target.value)} className="h-9" /></div>
                       <Button onClick={handleAddItem}><Plus className="h-4 w-4 mr-1" />Add</Button>
                     </div>
                   )}
@@ -294,13 +300,13 @@ export function PurchasesPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead><tr className="border-b bg-muted/50">
-                        <th className="text-left p-2">Product</th><th className="text-right p-2">Qty</th><th className="text-right p-2">Rate</th><th className="text-right p-2">Disc</th><th className="text-right p-2">Amount</th><th className="p-2"></th>
+                        <th className="text-left p-2">Product</th><th className="text-right p-2">Qty</th><th className="text-right p-2">MRP</th><th className="text-right p-2">Purchase Rate</th><th className="text-right p-2">Sale Rate</th><th className="text-right p-2">Amount</th><th className="p-2"></th>
                       </tr></thead>
                       <tbody>
                         {pItems.map((item, i) => (
                           <tr key={i} className="border-b">
                             <td className="p-2">{item.productDesc}</td><td className="p-2 text-right">{item.qty} {item.unit}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.rate)}</td><td className="p-2 text-right">{formatCurrency(item.discount)}</td>
+                            <td className="p-2 text-right">{formatCurrency(item.mrp)}</td><td className="p-2 text-right">{formatCurrency(item.purchaseRate)}</td><td className="p-2 text-right">{formatCurrency(item.saleRate)}</td>
                             <td className="p-2 text-right font-semibold">{formatCurrency(item.amount)}</td>
                             <td className="p-2"><Button variant="ghost" size="icon" onClick={() => setPItems(pItems.filter((_, idx) => idx !== i))}><X className="h-4 w-4 text-destructive" /></Button></td>
                           </tr>
@@ -311,7 +317,7 @@ export function PurchasesPage() {
                 )}
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="grid gap-2"><Label>Bill Discount</Label><Input type="number" value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} /></div>
+                  <div className="grid gap-2"><Label>Extra Discount</Label><Input type="number" value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} /></div>
                   <div className="grid gap-2"><Label>Payment Made</Label><Input type="number" value={paymentMade} onChange={(e) => setPaymentMade(e.target.value)} /></div>
                   <div className="grid gap-2"><Label>Payment Mode</Label>
                     <Select value={paymentMode} onValueChange={setPaymentMode}>

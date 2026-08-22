@@ -49,6 +49,12 @@ function toLocalRow(row: Record<string, unknown>) {
   return result;
 }
 
+function getNaturalKey(table: string, row: Record<string, unknown>): string | null {
+  if (table === 'categories') return `${row.name}|${row.type}`;
+  if (table === 'brands') return String(row.name);
+  return null;
+}
+
 export async function syncLocalData(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   if (!supabase || !session.user) return { uploaded: 0, downloaded: 0 };
   if (activeSync) return activeSync;
@@ -82,14 +88,22 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
     const localIds = new Set(localRows.map((row) => row.id));
     const remoteIds = new Set((cloudRows || []).map((row) => row.id));
     const rowsToUpload = localRows.filter((row) => !remoteIds.has(row.id) || Number(row.updatedAt || 0) >= Number(new Date(cloudRows?.find((remote) => remote.id === row.id)?.updated_at || 0)));
+    const naturalKeys = new Set<string>();
+    const deduplicatedRows = rowsToUpload.filter((row) => {
+      const key = getNaturalKey(cloudTable, row);
+      if (!key) return true;
+      if (naturalKeys.has(key)) return false;
+      naturalKeys.add(key);
+      return !(cloudRows || []).some((remote) => getNaturalKey(cloudTable, remote) === key && remote.id !== row.id);
+    });
 
-    if (rowsToUpload.length > 0) {
-      const { error } = await client.from(cloudTable).upsert(rowsToUpload.map((row) => toCloudRow(row, session.user.id)));
+    if (deduplicatedRows.length > 0) {
+      const { error } = await client.from(cloudTable).upsert(deduplicatedRows.map((row) => toCloudRow(row, session.user.id)));
       if (error) {
         if (error.code === 'PGRST205') continue;
         throw error;
       }
-      uploaded += rowsToUpload.length;
+      uploaded += deduplicatedRows.length;
     }
 
     const rowsToDownload = (cloudRows || []).filter((row) => !localIds.has(row.id) || Number(new Date(row.updated_at)) > Number(localRows.find((local) => local.id === row.id)?.updatedAt || 0));
