@@ -60,6 +60,25 @@ function getNaturalKey(table: string, row: Record<string, unknown>): string | nu
   return null;
 }
 
+function remapReferences(table: string, row: Record<string, unknown>, idRemaps: Map<string, string>) {
+  const referenceFields: Record<string, string[]> = {
+    invoice_items: ['invoiceId'],
+    purchase_items: ['purchaseId'],
+    payments: ['invoiceId'],
+    payment_allocations: ['paymentId', 'invoiceId'],
+    supplier_payments: ['purchaseId'],
+    returns: ['refInvoiceId', 'refPurchaseId'],
+    return_items: ['returnId'],
+    stock_movements: ['refId'],
+  };
+  const mapped = { ...row };
+  for (const field of referenceFields[table] || []) {
+    const value = mapped[field];
+    if (typeof value === 'string' && idRemaps.has(value)) mapped[field] = idRemaps.get(value);
+  }
+  return mapped;
+}
+
 export async function syncLocalData(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   if (!supabase || !session.user) return { uploaded: 0, downloaded: 0 };
   if (activeSync) return activeSync;
@@ -79,6 +98,7 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
   if (!client || !session.user) return { uploaded: 0, downloaded: 0 };
   let uploaded = 0;
   let downloaded = 0;
+  const idRemaps = new Map<string, string>();
 
   for (const localTable of TABLES) {
     const cloudTable = TABLE_NAMES[localTable] || localTable;
@@ -93,17 +113,26 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
     const localIds = new Set(localRows.map((row) => row.id));
     const remoteIds = new Set((cloudRows || []).map((row) => row.id));
     const rowsToUpload = localRows.filter((row) => !remoteIds.has(row.id) || Number(row.updatedAt || 0) >= Number(new Date(cloudRows?.find((remote) => remote.id === row.id)?.updated_at || 0)));
-    const naturalKeys = new Set<string>();
+    const naturalKeys = new Map<string, string>();
     const deduplicatedRows = rowsToUpload.filter((row) => {
       const key = getNaturalKey(cloudTable, row);
       if (!key) return true;
-      if (naturalKeys.has(key)) return false;
-      naturalKeys.add(key);
-      return !(cloudRows || []).some((remote) => getNaturalKey(cloudTable, remote) === key && remote.id !== row.id);
+      const remoteMatch = (cloudRows || []).find((remote) => getNaturalKey(cloudTable, remote) === key);
+      if (remoteMatch && remoteMatch.id !== row.id) {
+        idRemaps.set(String(row.id), String(remoteMatch.id));
+        return false;
+      }
+      const selectedId = naturalKeys.get(key);
+      if (selectedId) {
+        idRemaps.set(String(row.id), selectedId);
+        return false;
+      }
+      naturalKeys.set(key, String(row.id));
+      return true;
     });
 
     if (deduplicatedRows.length > 0) {
-      const { error } = await client.from(cloudTable).upsert(deduplicatedRows.map((row) => toCloudRow(row, session.user.id)));
+      const { error } = await client.from(cloudTable).upsert(deduplicatedRows.map((row) => toCloudRow(remapReferences(cloudTable, row, idRemaps), session.user.id)));
       if (error) {
         if (error.code === 'PGRST205') continue;
         throw error;
