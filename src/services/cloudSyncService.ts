@@ -52,11 +52,11 @@ function toLocalRow(row: Record<string, unknown>) {
 function getNaturalKey(table: string, row: Record<string, unknown>): string | null {
   if (table === 'categories') return `${row.name}|${row.type}`;
   if (table === 'brands') return String(row.name);
-  if (table === 'invoices') return String(row.invoice_no);
-  if (table === 'purchases') return String(row.bill_no);
-  if (table === 'payments') return String(row.receipt_no);
-  if (table === 'supplier_payments') return String(row.receipt_no);
-  if (table === 'returns') return String(row.return_no);
+  if (table === 'invoices') return String(row.invoice_no ?? row.invoiceNo);
+  if (table === 'purchases') return String(row.bill_no ?? row.billNo);
+  if (table === 'payments') return String(row.receipt_no ?? row.receiptNo);
+  if (table === 'supplier_payments') return String(row.receipt_no ?? row.receiptNo);
+  if (table === 'returns') return String(row.return_no ?? row.returnNo);
   return null;
 }
 
