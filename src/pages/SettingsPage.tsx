@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { getSettings, saveSettings, seedDefaultMetadata } from '@/services/settingsService';
 import { createBackup, restoreBackup, getBackupInfo, downloadBackup } from '@/services/backupService';
+import { clearAllBusinessData } from '@/services/cloudSyncService';
 import { seedDemoData } from '@/services/demoDataService';
 import { exportToExcel } from '@/services/exportService';
 import { getParties } from '@/services/partyService';
@@ -23,6 +24,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Settings as SettingsIcon, Save, Download, Upload, Database, Sparkles, FileSpreadsheet, HardDrive } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Settings } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { getSession } from '@/services/authService';
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -31,6 +34,7 @@ export function SettingsPage() {
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [confirmDemo, setConfirmDemo] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [tab, setTab] = useState('business');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,6 +85,16 @@ export function SettingsPage() {
       load();
     } catch (e: any) { toast.error(e.message); }
     finally { setConfirmDemo(false); }
+  };
+
+  const handleClearAllData = async () => {
+    try {
+      const session = supabase ? await getSession() : null;
+      await clearAllBusinessData(session);
+      toast.success('All business data cleared');
+      window.location.reload();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setConfirmClear(false); }
   };
 
   const handleExportData = async (type: string) => {
@@ -221,12 +235,17 @@ export function SettingsPage() {
             <p className="text-sm text-muted-foreground">Load demo data to see how the system works with realistic parties, products, invoices, payments, and more.</p>
             <Button variant="outline" onClick={() => setConfirmDemo(true)}><Sparkles className="h-4 w-4 mr-2" />Load Demo Data</Button>
             <p className="text-xs text-muted-foreground">Demo data will only be loaded if no parties exist yet.</p>
+            <div className="border-t pt-4 space-y-2">
+              <Button variant="destructive" onClick={() => setConfirmClear(true)}><Database className="h-4 w-4 mr-2" />Reset All Business Data</Button>
+              <p className="text-xs text-muted-foreground">Clears local and cloud business records for the signed-in account. This cannot be undone.</p>
+            </div>
           </CardContent></Card>
         </TabsContent>
       </Tabs>
 
       <ConfirmDialog open={confirmRestore} onOpenChange={setConfirmRestore} title="Restore Backup" description="This will REPLACE ALL current data with the backup file contents. Are you absolutely sure?" confirmLabel="Restore" variant="destructive" onConfirm={handleRestore} />
       <ConfirmDialog open={confirmDemo} onOpenChange={setConfirmDemo} title="Load Demo Data" description="This will add sample parties, products, invoices, and more. Continue?" confirmLabel="Load Demo Data" onConfirm={handleSeedDemo} />
+      <ConfirmDialog open={confirmClear} onOpenChange={setConfirmClear} title="Reset All Business Data" description="This permanently deletes all local and cloud business records for this account. Authentication and application settings remain available. Continue?" confirmLabel="Delete Everything" variant="destructive" onConfirm={handleClearAllData} />
     </div>
   );
 }

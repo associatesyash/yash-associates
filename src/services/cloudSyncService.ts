@@ -15,6 +15,7 @@ const TABLE_NAMES: Record<string, string> = {
 
 let activeSync: Promise<{ uploaded: number; downloaded: number }> | null = null;
 let lastSyncAt = 0;
+let resetting = false;
 const SYNC_COOLDOWN_MS = 10000;
 
 function toSnakeCase(value: string): string {
@@ -90,6 +91,7 @@ function withoutOptionalPurchaseFields(row: Record<string, unknown>) {
 
 export async function syncLocalData(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   if (!supabase || !session.user) return { uploaded: 0, downloaded: 0 };
+  if (resetting) return { uploaded: 0, downloaded: 0 };
   if (activeSync) return activeSync;
   if (Date.now() - lastSyncAt < SYNC_COOLDOWN_MS) return { uploaded: 0, downloaded: 0 };
 
@@ -99,6 +101,30 @@ export async function syncLocalData(session: Session): Promise<{ uploaded: numbe
   } finally {
     lastSyncAt = Date.now();
     activeSync = null;
+  }
+}
+
+export async function clearAllBusinessData(session: Session | null): Promise<void> {
+  resetting = true;
+  try {
+    if (supabase && session?.user) {
+      const deleteOrder = [
+        'audit_logs', 'stock_movements', 'return_items', 'returns', 'supplier_payments',
+        'purchase_items', 'purchases', 'payment_allocations', 'payments', 'invoice_items',
+        'invoices', 'expenses', 'settings', 'categories', 'brands', 'products', 'suppliers', 'parties',
+      ];
+      for (const table of deleteOrder) {
+        const { error } = await supabase.from(table).delete().neq('id', '');
+        if (error && error.code !== 'PGRST205') throw error;
+      }
+    }
+
+    for (const table of TABLES) {
+      await (db as unknown as Record<string, { clear: () => Promise<void> }>)[table].clear();
+    }
+    lastSyncAt = Date.now();
+  } finally {
+    resetting = false;
   }
 }
 
