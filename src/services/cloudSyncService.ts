@@ -148,6 +148,7 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
       }
       if (error) {
         if (error.code === 'PGRST205') continue;
+        if (error.code === '23505' && error.message?.includes('expenses_expense_no_key')) continue;
         throw error;
       }
       uploaded += deduplicatedRows.length;
