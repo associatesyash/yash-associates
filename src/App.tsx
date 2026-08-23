@@ -3,8 +3,6 @@ import { useUIStore } from '@/stores/uiStore';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { seedDefaultMetadata } from '@/services/settingsService';
-import { seedDemoData } from '@/services/demoDataService';
-import { getParties } from '@/services/partyService';
 import { Toaster } from '@/components/ui/sonner';
 import { Loader2 } from 'lucide-react';
 import { AuthPage } from '@/components/auth/AuthPage';
@@ -85,10 +83,6 @@ function App() {
       setSession(currentSession);
       setAuthReady(true);
       await seedDefaultMetadata();
-      const parties = await getParties();
-      if (parties.length === 0) {
-        await seedDemoData();
-      }
       if (currentSession) {
         try {
           await syncLocalData(currentSession);
