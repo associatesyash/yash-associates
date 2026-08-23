@@ -57,6 +57,7 @@ function getNaturalKey(table: string, row: Record<string, unknown>): string | nu
   if (table === 'payments') return String(row.receipt_no ?? row.receiptNo);
   if (table === 'supplier_payments') return String(row.receipt_no ?? row.receiptNo);
   if (table === 'returns') return String(row.return_no ?? row.returnNo);
+  if (table === 'expenses') return String(row.expense_no ?? row.expenseNo);
   return null;
 }
 
