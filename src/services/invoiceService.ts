@@ -21,10 +21,13 @@ export interface InvoiceDraft {
     qty: number;
     rate: number;
     discount: number;
+    discountRate?: number;
     amount: number;
   }[];
   discountAmount: number;
+  billDiscountRate?: number;
   notes: string;
+  salesperson?: string;
   paymentReceived: number;
   paymentMode: string;
   paymentRef: string;
@@ -43,7 +46,7 @@ export async function generateReceiptNo(): Promise<string> {
 }
 
 function calcInvoiceTotals(draft: InvoiceDraft, settings: Settings) {
-  const subtotal = draft.items.reduce((s, i) => s + i.amount, 0);
+  const subtotal = draft.items.reduce((s, i) => s + i.qty * i.rate, 0);
   const itemDiscounts = draft.items.reduce((s, i) => s + i.discount, 0);
   const afterItemDiscount = subtotal - itemDiscounts;
   const billDiscount = draft.discountAmount || 0;
@@ -89,6 +92,7 @@ export async function createInvoice(draft: InvoiceDraft): Promise<string> {
     partyName: draft.partyName,
     subtotal: totals.subtotal,
     discountAmount: draft.discountAmount + totals.itemDiscounts,
+    billDiscountRate: draft.billDiscountRate,
     taxAmount: totals.taxAmount,
     roundOff: totals.roundOff,
     grandTotal: totals.grandTotal,
@@ -96,6 +100,7 @@ export async function createInvoice(draft: InvoiceDraft): Promise<string> {
     outstanding: totals.outstanding,
     status: totals.status,
     notes: draft.notes,
+    salesperson: draft.salesperson,
     paymentMode: draft.paymentMode,
     paymentRef: draft.paymentRef,
     cancelled: false,
@@ -117,6 +122,7 @@ export async function createInvoice(draft: InvoiceDraft): Promise<string> {
     qty: item.qty,
     rate: item.rate,
     discount: item.discount,
+    discountRate: item.discountRate,
     amount: item.amount,
     createdAt: now(),
     updatedAt: now(),

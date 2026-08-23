@@ -39,6 +39,7 @@ export interface Invoice extends BaseEntity {
   partyName: string;
   subtotal: number;
   discountAmount: number;
+  billDiscountRate?: number;
   taxAmount: number;
   roundOff: number;
   grandTotal: number;
@@ -46,6 +47,7 @@ export interface Invoice extends BaseEntity {
   outstanding: number;
   status: 'Paid' | 'Partial' | 'Due';
   notes: string;
+  salesperson?: string;
   paymentMode: string;
   paymentRef: string;
   cancelled: boolean;
@@ -64,6 +66,7 @@ export interface InvoiceItem extends BaseEntity {
   qty: number;
   rate: number;
   discount: number;
+  discountRate?: number;
   amount: number;
 }
 
@@ -108,6 +111,7 @@ export interface Purchase extends BaseEntity {
   supplierName: string;
   subtotal: number;
   discountAmount: number;
+  billDiscountRate?: number;
   taxAmount: number;
   roundOff: number;
   grandTotal: number;
@@ -115,6 +119,12 @@ export interface Purchase extends BaseEntity {
   outstanding: number;
   status: 'Paid' | 'Partial' | 'Due';
   notes: string;
+  supplierInvoiceNo?: string;
+  supplierInvoiceDate?: number;
+  purchaseType?: string;
+  purchaseFrom?: string;
+  paymentTerms?: string;
+  dueDate?: number;
   paymentMode: string;
   paymentRef: string;
   cancelled: boolean;
@@ -136,6 +146,11 @@ export interface PurchaseItem extends BaseEntity {
   purchaseRate: number;
   saleRate: number;
   discount: number;
+  discountRate?: number;
+  extraDiscountRate?: number;
+  extraDiscount?: number;
+  gstRate?: number;
+  gstAmount?: number;
   amount: number;
 }
 

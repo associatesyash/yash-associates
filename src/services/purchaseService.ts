@@ -1,5 +1,5 @@
 import { db, uid, now } from '../database/db';
-import type { Supplier, Purchase, PurchaseItem, SupplierPayment, Settings } from '../types';
+import type { Supplier, Purchase, PurchaseItem, SupplierPayment } from '../types';
 import { addStockMovement } from './stockService';
 import { logAudit } from './auditService';
 import { getSettings } from './settingsService';
@@ -88,9 +88,21 @@ export interface PurchaseDraft {
     purchaseRate: number;
     saleRate: number;
     discount: number;
+    discountRate?: number;
+    extraDiscountRate?: number;
+    extraDiscount?: number;
+    gstRate?: number;
+    gstAmount?: number;
     amount: number;
   }[];
   discountAmount: number;
+  billDiscountRate?: number;
+  supplierInvoiceNo?: string;
+  supplierInvoiceDate?: number;
+  purchaseType?: string;
+  purchaseFrom?: string;
+  paymentTerms?: string;
+  dueDate?: number;
   notes: string;
   paymentMade: number;
   paymentMode: string;
@@ -104,13 +116,13 @@ export async function createPurchase(draft: PurchaseDraft): Promise<string> {
     throw new Error('Quantity and MRP, purchase rate, and sale rate must be greater than zero');
   }
 
-  const settings = await getSettings();
-  const subtotal = draft.items.reduce((s, i) => s + i.amount, 0);
+  const subtotal = draft.items.reduce((s, i) => s + i.qty * i.rate, 0);
   const itemDiscounts = draft.items.reduce((s, i) => s + i.discount, 0);
+  const extraDiscounts = draft.items.reduce((s, i) => s + (i.extraDiscount || 0), 0);
   const afterItemDiscount = subtotal - itemDiscounts;
   const billDiscount = draft.discountAmount || 0;
-  const taxableAmount = afterItemDiscount - billDiscount;
-  const taxAmount = settings.taxEnabled ? Math.round(taxableAmount * settings.taxRate) / 100 : 0;
+  const taxableAmount = afterItemDiscount - extraDiscounts - billDiscount;
+  const taxAmount = draft.items.reduce((s, i) => s + ((i.qty * i.rate - i.discount - (i.extraDiscount || 0)) * (i.gstRate || 0) / 100), 0);
   const beforeRound = taxableAmount + taxAmount;
   const grandTotal = Math.round(beforeRound);
   const roundOff = grandTotal - beforeRound;
@@ -132,7 +144,14 @@ export async function createPurchase(draft: PurchaseDraft): Promise<string> {
     supplierId: draft.supplierId,
     supplierName: draft.supplierName,
     subtotal,
-    discountAmount: draft.discountAmount + itemDiscounts,
+    discountAmount: draft.discountAmount + itemDiscounts + extraDiscounts,
+    billDiscountRate: draft.billDiscountRate,
+    supplierInvoiceNo: draft.supplierInvoiceNo,
+    supplierInvoiceDate: draft.supplierInvoiceDate,
+    purchaseType: draft.purchaseType,
+    purchaseFrom: draft.purchaseFrom,
+    paymentTerms: draft.paymentTerms,
+    dueDate: draft.dueDate,
     taxAmount,
     roundOff,
     grandTotal,
@@ -164,6 +183,11 @@ export async function createPurchase(draft: PurchaseDraft): Promise<string> {
     purchaseRate: item.purchaseRate,
     saleRate: item.saleRate,
     discount: item.discount,
+    discountRate: item.discountRate,
+    extraDiscountRate: item.extraDiscountRate,
+    extraDiscount: item.extraDiscount,
+    gstRate: item.gstRate,
+    gstAmount: item.gstAmount,
     amount: item.amount,
     createdAt: now(),
     updatedAt: now(),
