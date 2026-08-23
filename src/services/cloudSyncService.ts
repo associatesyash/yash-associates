@@ -16,6 +16,7 @@ const TABLE_NAMES: Record<string, string> = {
 let activeSync: Promise<{ uploaded: number; downloaded: number }> | null = null;
 let lastSyncAt = 0;
 let resetting = false;
+const RESET_LOCK_KEY = 'yash-business-data-resetting';
 const SYNC_COOLDOWN_MS = 10000;
 
 function toSnakeCase(value: string): string {
@@ -91,7 +92,7 @@ function withoutOptionalPurchaseFields(row: Record<string, unknown>) {
 
 export async function syncLocalData(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   if (!supabase || !session.user) return { uploaded: 0, downloaded: 0 };
-  if (resetting) return { uploaded: 0, downloaded: 0 };
+  if (resetting || localStorage.getItem(RESET_LOCK_KEY) === '1') return { uploaded: 0, downloaded: 0 };
   if (activeSync) return activeSync;
   if (Date.now() - lastSyncAt < SYNC_COOLDOWN_MS) return { uploaded: 0, downloaded: 0 };
 
@@ -106,6 +107,7 @@ export async function syncLocalData(session: Session): Promise<{ uploaded: numbe
 
 export async function clearAllBusinessData(session: Session | null): Promise<void> {
   resetting = true;
+  localStorage.setItem(RESET_LOCK_KEY, '1');
   try {
     if (supabase && session?.user) {
       const deleteOrder = [
@@ -117,6 +119,10 @@ export async function clearAllBusinessData(session: Session | null): Promise<voi
         const { error } = await supabase.from(table).delete().neq('id', '');
         if (error && error.code !== 'PGRST205') throw error;
       }
+      for (const table of ['invoices', 'purchases', 'parties', 'suppliers']) {
+        const { error } = await supabase.from(table).delete().neq('id', '');
+        if (error && error.code !== 'PGRST205') throw error;
+      }
     }
 
     for (const table of TABLES) {
@@ -125,6 +131,7 @@ export async function clearAllBusinessData(session: Session | null): Promise<voi
     lastSyncAt = Date.now();
   } finally {
     resetting = false;
+    localStorage.removeItem(RESET_LOCK_KEY);
   }
 }
 
