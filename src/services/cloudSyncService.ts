@@ -19,7 +19,6 @@ let resetting = false;
 const RESET_LOCK_KEY = 'yash-business-data-resetting';
 const RESET_COOLDOWN_KEY = 'yash-business-data-reset-complete';
 const SYNC_COOLDOWN_MS = 10000;
-const RESET_SYNC_COOLDOWN_MS = 5000;
 
 function toSnakeCase(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -95,11 +94,6 @@ function withoutOptionalPurchaseFields(row: Record<string, unknown>) {
 export async function syncLocalData(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   if (!supabase || !session.user) return { uploaded: 0, downloaded: 0 };
   if (resetting || localStorage.getItem(RESET_LOCK_KEY) === '1') return { uploaded: 0, downloaded: 0 };
-  const resetAt = Number(localStorage.getItem(RESET_COOLDOWN_KEY) || 0);
-  if (resetAt > 0) {
-    if (Date.now() - resetAt < RESET_SYNC_COOLDOWN_MS) return { uploaded: 0, downloaded: 0 };
-    localStorage.removeItem(RESET_COOLDOWN_KEY);
-  }
   if (activeSync) return activeSync;
   if (Date.now() - lastSyncAt < SYNC_COOLDOWN_MS) return { uploaded: 0, downloaded: 0 };
 
@@ -159,6 +153,7 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
   if (!client || !session.user) return { uploaded: 0, downloaded: 0 };
   let uploaded = 0;
   let downloaded = 0;
+  const resetAt = Number(localStorage.getItem(RESET_COOLDOWN_KEY) || 0);
   const idRemaps = new Map<string, string>();
 
   for (const localTable of TABLES) {
@@ -173,7 +168,11 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
 
     const localIds = new Set(localRows.map((row) => row.id));
     const remoteIds = new Set((cloudRows || []).map((row) => row.id));
-    const rowsToUpload = localRows.filter((row) => !remoteIds.has(row.id) || Number(row.updatedAt || 0) >= Number(new Date(cloudRows?.find((remote) => remote.id === row.id)?.updated_at || 0)));
+    const rowsToUpload = localRows.filter((row) => {
+      // A reset is permanent for pre-reset records, including stale data held by another tab.
+      if (resetAt > 0 && Number(row.createdAt || 0) <= resetAt) return false;
+      return !remoteIds.has(row.id) || Number(row.updatedAt || 0) >= Number(new Date(cloudRows?.find((remote) => remote.id === row.id)?.updated_at || 0));
+    });
     const naturalKeys = new Map<string, string>();
     const deduplicatedRows = rowsToUpload.filter((row) => {
       const key = getNaturalKey(cloudTable, row);
@@ -206,7 +205,10 @@ async function runSync(session: Session): Promise<{ uploaded: number; downloaded
       uploaded += deduplicatedRows.length;
     }
 
-    const rowsToDownload = (cloudRows || []).filter((row) => !localIds.has(row.id) || Number(new Date(row.updated_at)) > Number(localRows.find((local) => local.id === row.id)?.updatedAt || 0));
+    const rowsToDownload = (cloudRows || []).filter((row) => {
+      if (resetAt > 0 && Number(new Date(row.created_at || 0)) <= resetAt) return false;
+      return !localIds.has(row.id) || Number(new Date(row.updated_at)) > Number(localRows.find((local) => local.id === row.id)?.updatedAt || 0);
+    });
     if (rowsToDownload.length > 0) {
       await (db as unknown as Record<string, { bulkPut: (rows: Record<string, unknown>[]) => Promise<unknown> }>)[localTable].bulkPut(rowsToDownload.map(toLocalRow));
       downloaded += rowsToDownload.length;
