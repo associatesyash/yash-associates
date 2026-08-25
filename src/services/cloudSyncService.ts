@@ -135,7 +135,7 @@ export async function clearAllBusinessData(session: Session | null): Promise<voi
       }
       const deleteOrder = [
         'audit_logs', 'stock_movements', 'return_items', 'returns', 'supplier_payments',
-        'purchase_items', 'payment_allocations', 'payments', 'invoice_items', 'invoices',
+        'purchase_items', 'purchases', 'payment_allocations', 'payments', 'invoice_items', 'invoices',
         'expenses', 'settings', 'categories', 'brands', 'products', 'suppliers', 'parties',
       ];
       for (const table of deleteOrder) {
