@@ -121,8 +121,11 @@ export async function createPurchase(draft: PurchaseDraft): Promise<string> {
   const extraDiscounts = draft.items.reduce((s, i) => s + (i.extraDiscount || 0), 0);
   const afterItemDiscount = subtotal - itemDiscounts;
   const billDiscount = draft.discountAmount || 0;
-  const taxableAmount = afterItemDiscount - extraDiscounts - billDiscount;
-  const taxAmount = draft.items.reduce((s, i) => s + ((i.qty * i.rate - i.discount - (i.extraDiscount || 0)) * (i.gstRate || 0) / 100), 0);
+  const taxableAmount = Math.max(0, afterItemDiscount - extraDiscounts - billDiscount);
+  const taxAmount = draft.items.reduce((s, i) => {
+    const itemTaxable = Math.max(0, i.qty * i.rate - i.discount - (i.extraDiscount || 0));
+    return s + (i.gstAmount ?? (itemTaxable * (i.gstRate || 0) / 100));
+  }, 0);
   const beforeRound = taxableAmount + taxAmount;
   const grandTotal = Math.round(beforeRound);
   const roundOff = grandTotal - beforeRound;

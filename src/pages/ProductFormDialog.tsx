@@ -98,6 +98,13 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
     setNewMetaType(null);
   };
 
+  const sizesForCategory = (selectedCategory: string) => {
+    const normalizedCategory = selectedCategory.trim().toUpperCase();
+    if (normalizedCategory === 'BRA') return ['28', '30', '32', '34', '36', '38', '40'];
+    if (normalizedCategory === 'PANTY') return ['M', 'L', 'XL', 'XXL'];
+    return DEFAULT_SIZES;
+  };
+
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!code.trim()) errs.code = 'Product code is required';
@@ -158,7 +165,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
             </div>
             <div className="grid gap-2">
               <div className="flex items-center justify-between"><Label>Category <span className="text-destructive">*</span></Label><Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setNewMetaType('category')}>+ Add New Category</Button></div>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(value) => { setCategory(value); setSize(''); }}>
                 <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -190,7 +197,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
               <Select value={size} onValueChange={setSize}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  {DEFAULT_SIZES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {sizesForCategory(category).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

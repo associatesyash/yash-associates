@@ -238,14 +238,16 @@ export function PurchasesPage() {
     const afterDiscount1 = grossAmount * (1 - discountRate / 100);
     const afterDiscount2 = afterDiscount1 * (1 - discountRate2 / 100);
     const afterDiscounts = afterDiscount2 * (1 - discountRate3 / 100);
+    const taxableAmount = Math.max(0, afterDiscounts - extraDiscount);
+    const gstAmount = taxableAmount * gstRate / 100;
     setPItems([...pItems, {
       productId: product.id, productCode: product.code, productDesc: `${product.category} ${product.brand} ${product.design} ${product.size} ${product.color}`,
       category: product.category, brand: product.brand, size: product.size, color: product.color, unit: product.unit,
       qty: q, rate: purchaseRate, mrp, purchaseRate, saleRate, discount: grossAmount - afterDiscounts,
       discountRate, discountRate2, discountRate3, extraDiscountRate: 0, gstRate,
       extraDiscount,
-      gstAmount: 0,
-      amount: q * purchaseRate,
+      gstAmount,
+      amount: taxableAmount + gstAmount,
     }]);
     setSelProductId(''); setProductSearch(''); setPQty('1'); setPMrp('0'); setPPurchaseRate('0'); setPSaleRate('0'); setPDiscount('0'); setPDiscount2('0'); setPDiscount3('0'); setPExtraDiscount('0'); setPGst('0');
   };
@@ -253,8 +255,8 @@ export function PurchasesPage() {
   const subtotal = pItems.reduce((s, i) => s + i.qty * i.rate, 0);
   const itemDiscounts = pItems.reduce((s, i) => s + i.discount, 0);
   const extraDiscounts = pItems.reduce((s, i) => s + (i.extraDiscount || 0), 0);
-  const taxable = subtotal - itemDiscounts - extraDiscounts;
-  const tax = pItems.reduce((s, i) => s + ((i.qty * i.rate - i.discount - (i.extraDiscount || 0)) * (i.gstRate || 0) / 100), 0);
+  const taxable = Math.max(0, subtotal - itemDiscounts - extraDiscounts);
+  const tax = pItems.reduce((s, i) => s + (i.gstAmount ?? ((i.qty * i.rate - i.discount - (i.extraDiscount || 0)) * (i.gstRate || 0) / 100)), 0);
   const beforeRound = taxable + tax;
   const grandTotal = Math.round(beforeRound);
   const roundOff = grandTotal - beforeRound;
@@ -382,7 +384,7 @@ export function PurchasesPage() {
                         {pItems.map((item, i) => (
                           <tr key={i} className="border-b">
                             <td className="p-2">{item.productDesc}</td><td className="p-2 text-right">{item.size || '-'}</td><td className="p-2 text-right">{item.qty} {item.unit}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.purchaseRate)}</td><td className="p-2 text-right">{item.discountRate}%</td><td className="p-2 text-right">{formatCurrency(item.extraDiscount || 0)}</td><td className="p-2 text-right">{item.gstRate}%</td>
+                            <td className="p-2 text-right">{formatCurrency(item.purchaseRate)}</td><td className="p-2 text-right">{[item.discountRate, item.discountRate2, item.discountRate3].filter((rate) => rate > 0).map((rate) => `${rate}%`).join(' + ') || '0%'}</td><td className="p-2 text-right">{formatCurrency(item.extraDiscount || 0)}</td><td className="p-2 text-right">{item.gstRate}%</td>
                             <td className="p-2 text-right font-semibold">{formatCurrency(item.amount)}</td>
                             <td className="p-2"><Button variant="ghost" size="icon" onClick={() => setPItems(pItems.filter((_, idx) => idx !== i))}><X className="h-4 w-4 text-destructive" /></Button></td>
                           </tr>
