@@ -122,16 +122,23 @@ export async function clearAllBusinessData(session: Session | null): Promise<voi
       activeSync = null;
     }
     if (supabase && session?.user) {
-      const deleteOrder = [
-        'audit_logs', 'stock_movements', 'return_items', 'returns', 'supplier_payments',
-        'purchase_items', 'purchases', 'payment_allocations', 'payments', 'invoice_items',
-        'invoices', 'expenses', 'settings', 'categories', 'brands', 'products', 'suppliers', 'parties',
-      ];
-      for (const table of deleteOrder) {
-        const { error } = await supabase.from(table).delete().neq('id', '');
+      // Detach nullable references before deleting their parent invoices and purchases.
+      const detachOperations = [
+        ['payments', 'invoice_id'],
+        ['supplier_payments', 'purchase_id'],
+        ['returns', 'ref_invoice_id'],
+        ['returns', 'ref_purchase_id'],
+      ] as const;
+      for (const [table, column] of detachOperations) {
+        const { error } = await supabase.from(table).update({ [column]: null }).neq('id', '');
         if (error && error.code !== 'PGRST205') throw error;
       }
-      for (const table of ['invoices', 'purchases', 'parties', 'suppliers']) {
+      const deleteOrder = [
+        'audit_logs', 'stock_movements', 'return_items', 'returns', 'supplier_payments',
+        'purchase_items', 'payment_allocations', 'payments', 'invoice_items', 'invoices',
+        'expenses', 'settings', 'categories', 'brands', 'products', 'suppliers', 'parties',
+      ];
+      for (const table of deleteOrder) {
         const { error } = await supabase.from(table).delete().neq('id', '');
         if (error && error.code !== 'PGRST205') throw error;
       }
