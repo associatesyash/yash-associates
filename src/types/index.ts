@@ -275,6 +275,7 @@ export interface Settings {
   returnPrefix: string;
   lowStockAlert: boolean;
   logoText: string;
+  stores?: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -293,4 +294,5 @@ export const DEFAULT_SETTINGS: Settings = {
   returnPrefix: 'RTN',
   lowStockAlert: true,
   logoText: 'YA',
+  stores: ['Main Store', 'Warehouse', 'Shop', 'Godown'],
 };

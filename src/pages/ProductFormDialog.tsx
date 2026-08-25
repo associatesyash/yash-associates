@@ -49,6 +49,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [newMetaType, setNewMetaType] = useState<'brand' | 'category' | null>(null);
+  const [newMetaName, setNewMetaName] = useState('');
 
   const loadMeta = async () => {
     const cats = await getCategories('product');
@@ -78,6 +80,22 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
       setPurchaseRate('0'); setWholesaleRate('0'); setMrp('0'); setOpeningStock('0'); setMinStock('0'); setDescription(''); setActive(true);
     }
     setErrors({});
+  };
+
+  const handleAddMetadata = async () => {
+    const name = newMetaName.trim();
+    if (!name) return;
+    if (newMetaType === 'brand') {
+      await addBrand(name);
+      setBrand(name);
+      setBrands((current) => [...new Set([...current, name])].sort());
+    } else if (newMetaType === 'category') {
+      await addCategory(name, 'product');
+      setCategory(name);
+      setCategories((current) => [...new Set([...current, name])].sort());
+    }
+    setNewMetaName('');
+    setNewMetaType(null);
   };
 
   const validate = (): boolean => {
@@ -124,7 +142,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (v) handleOpen(); onOpenChange(v); }}>
+    <>
+      <Dialog open={open} onOpenChange={(v) => { if (v) handleOpen(); onOpenChange(v); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? 'Edit Product' : 'New Product'}</DialogTitle>
@@ -138,8 +157,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
               {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
             </div>
             <div className="grid gap-2">
-              <Label>Category <span className="text-destructive">*</span></Label>
-              <Select value={category} onValueChange={async (v) => { setCategory(v); }}>
+              <div className="flex items-center justify-between"><Label>Category <span className="text-destructive">*</span></Label><Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setNewMetaType('category')}>+ Add New Category</Button></div>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -150,7 +169,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label>Brand <span className="text-destructive">*</span></Label>
+              <div className="flex items-center justify-between"><Label>Brand <span className="text-destructive">*</span></Label><Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setNewMetaType('brand')}>+ Add New Brand</Button></div>
               <Select value={brand} onValueChange={setBrand}>
                 <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
                 <SelectContent>
@@ -229,6 +248,23 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
           <Button onClick={handleSave} disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+      <Dialog open={!!newMetaType} onOpenChange={(value) => { if (!value) setNewMetaType(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add New {newMetaType === 'brand' ? 'Brand' : 'Category'}</DialogTitle>
+            <DialogDescription>Create it here and it will be selected in the product form.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Label htmlFor="new-product-meta">Name</Label>
+            <Input id="new-product-meta" autoFocus value={newMetaName} onChange={(event) => setNewMetaName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') handleAddMetadata(); }} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewMetaType(null)}>Cancel</Button>
+            <Button onClick={handleAddMetadata} disabled={!newMetaName.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

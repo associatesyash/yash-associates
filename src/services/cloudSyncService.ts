@@ -17,7 +17,9 @@ let activeSync: Promise<{ uploaded: number; downloaded: number }> | null = null;
 let lastSyncAt = 0;
 let resetting = false;
 const RESET_LOCK_KEY = 'yash-business-data-resetting';
+const RESET_COOLDOWN_KEY = 'yash-business-data-reset-complete';
 const SYNC_COOLDOWN_MS = 10000;
+const RESET_SYNC_COOLDOWN_MS = 5000;
 
 function toSnakeCase(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -93,6 +95,11 @@ function withoutOptionalPurchaseFields(row: Record<string, unknown>) {
 export async function syncLocalData(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   if (!supabase || !session.user) return { uploaded: 0, downloaded: 0 };
   if (resetting || localStorage.getItem(RESET_LOCK_KEY) === '1') return { uploaded: 0, downloaded: 0 };
+  const resetAt = Number(localStorage.getItem(RESET_COOLDOWN_KEY) || 0);
+  if (resetAt > 0) {
+    if (Date.now() - resetAt < RESET_SYNC_COOLDOWN_MS) return { uploaded: 0, downloaded: 0 };
+    localStorage.removeItem(RESET_COOLDOWN_KEY);
+  }
   if (activeSync) return activeSync;
   if (Date.now() - lastSyncAt < SYNC_COOLDOWN_MS) return { uploaded: 0, downloaded: 0 };
 
@@ -108,7 +115,12 @@ export async function syncLocalData(session: Session): Promise<{ uploaded: numbe
 export async function clearAllBusinessData(session: Session | null): Promise<void> {
   resetting = true;
   localStorage.setItem(RESET_LOCK_KEY, '1');
+  localStorage.setItem(RESET_COOLDOWN_KEY, String(Date.now()));
   try {
+    if (activeSync) {
+      await activeSync.catch(() => undefined);
+      activeSync = null;
+    }
     if (supabase && session?.user) {
       const deleteOrder = [
         'audit_logs', 'stock_movements', 'return_items', 'returns', 'supplier_payments',

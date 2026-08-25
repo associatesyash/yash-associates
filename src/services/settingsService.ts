@@ -94,7 +94,7 @@ export const DEFAULT_SIZES = ['28', '30', '32', '34', '36', '38', '40', '42', '4
 
 export const DEFAULT_COLORS = ['Black', 'White', 'Skin', 'Red', 'Blue', 'Pink', 'Grey', 'Beige'];
 
-export const PAYMENT_MODES = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
+export const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'UPI', 'Credit', 'Cheque'];
 
 export const RETURN_REASONS = [
   'Damaged Goods',

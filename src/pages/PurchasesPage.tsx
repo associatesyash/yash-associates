@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useUIStore } from '@/stores/uiStore';
-import { getSuppliers, saveSupplier, deleteSupplier, toggleSupplierActive, getSupplierOutstanding, getSupplierLedger, getSupplierPayments, paySupplier } from '@/services/purchaseService';
+import { getSuppliers, getSupplier, saveSupplier, deleteSupplier, toggleSupplierActive, getSupplierOutstanding, getSupplierLedger, getSupplierPayments, paySupplier } from '@/services/purchaseService';
 import { getProducts } from '@/services/productService';
 import { getCurrentStock } from '@/services/stockService';
 import { getParties } from '@/services/partyService';
 import { createPurchase, generatePurchaseNo, getPurchases, getPurchaseItems, cancelPurchase } from '@/services/purchaseService';
-import { PAYMENT_MODES } from '@/services/settingsService';
+import { PAYMENT_MODES, getSettings, saveSettings } from '@/services/settingsService';
 import { formatCurrency, formatDate, toDateInput, fromDateInput } from '@/utils/format';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -24,6 +24,7 @@ import { Truck, Plus, Search, Pencil, Trash2, Power, X, Eye, Wallet, Download } 
 import { exportToExcel } from '@/services/exportService';
 import { toast } from 'sonner';
 import type { Supplier, Product, Purchase } from '@/types';
+import { ProductFormDialog } from './ProductFormDialog';
 
 export function PurchasesPage() {
   const [tab, setTab] = useState('purchases');
@@ -52,6 +53,9 @@ export function PurchasesPage() {
   const [billNo, setBillNo] = useState('');
   const [date, setDate] = useState(toDateInput(Date.now()));
   const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [addSupplierToPurchase, setAddSupplierToPurchase] = useState(false);
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState('');
   const [supplierInvoiceDate, setSupplierInvoiceDate] = useState(toDateInput(Date.now()));
   const [purchaseType, setPurchaseType] = useState('Regular');
@@ -67,6 +71,8 @@ export function PurchasesPage() {
   const [pPurchaseRate, setPPurchaseRate] = useState('0');
   const [pSaleRate, setPSaleRate] = useState('0');
   const [pDiscount, setPDiscount] = useState('0');
+  const [pDiscount2, setPDiscount2] = useState('0');
+  const [pDiscount3, setPDiscount3] = useState('0');
   const [pExtraDiscount, setPExtraDiscount] = useState('0');
   const [pGst, setPGst] = useState('0');
   const [paymentMade, setPaymentMade] = useState('0');
@@ -74,6 +80,9 @@ export function PurchasesPage() {
   const [paymentRef, setPaymentRef] = useState('');
   const [pNotes, setPNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [productFormOpen, setProductFormOpen] = useState(false);
+  const [stores, setStores] = useState<string[]>(['Main Store', 'Warehouse', 'Shop', 'Godown']);
+  const [newStore, setNewStore] = useState('');
 
   const [cancelPurchaseTarget, setCancelPurchaseTarget] = useState<Purchase | null>(null);
 
@@ -92,6 +101,7 @@ export function PurchasesPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { getSettings().then((settings) => setStores(settings.stores || ['Main Store', 'Warehouse', 'Shop', 'Godown'])); }, []);
 
   // Supplier form helpers
   const [sName, setSName] = useState('');
@@ -104,8 +114,9 @@ export function PurchasesPage() {
   const [sNotes, setSNotes] = useState('');
   const [sActive, setSActive] = useState(true);
 
-  const openSupplierForm = (s: Supplier | null) => {
+  const openSupplierForm = (s: Supplier | null, fromPurchase = false) => {
     setEditSupplier(s);
+    setAddSupplierToPurchase(fromPurchase);
     if (s) {
       setSName(s.name); setSMobile(s.mobile); setSAddress(s.address); setSCity(s.city);
       setSGst(s.gstNumber); setSOpening(String(s.openingBalance)); setSTerms(s.creditTerms); setSNotes(s.notes); setSActive(s.active);
@@ -118,13 +129,19 @@ export function PurchasesPage() {
   const saveSupplierForm = async () => {
     if (!sName.trim()) { toast.error('Supplier name is required'); return; }
     try {
-      await saveSupplier({
+      const supplierId = await saveSupplier({
         id: editSupplier?.id, name: sName.trim(), mobile: sMobile.trim(), address: sAddress.trim(),
         city: sCity.trim(), gstNumber: sGst.trim(), openingBalance: Number(sOpening) || 0,
         creditTerms: sTerms.trim(), notes: sNotes.trim(), active: sActive,
       });
       toast.success(editSupplier ? 'Supplier updated' : 'Supplier created');
       setSupplierFormOpen(false);
+      if (addSupplierToPurchase) {
+        setSelectedSupplier(supplierId);
+        const created = await getSupplier(supplierId);
+        setSupplierSearch(created?.name || '');
+        setAddSupplierToPurchase(false);
+      }
       load();
     } catch (e: any) { toast.error(e.message); }
   };
@@ -160,12 +177,38 @@ export function PurchasesPage() {
     const no = await generatePurchaseNo();
     setBillNo(no);
     setPItems([]); setPaymentMade('0'); setPaymentRef(''); setPNotes(''); setSelectedSupplier(''); setProductSearch(''); setSupplierInvoiceNo(''); setSupplierInvoiceDate(toDateInput(Date.now())); setPurchaseType('Regular'); setPurchaseFrom(''); setPaymentTerms(''); setDueDate('');
+    setSupplierSearch('');
+  };
+
+  const handleTermsChange = (value: string) => {
+    setPaymentTerms(value);
+    const days = Number(value.match(/\d+/)?.[0] || 0);
+    if (days > 0 && supplierInvoiceDate) {
+      const calculated = new Date(fromDateInput(supplierInvoiceDate));
+      calculated.setDate(calculated.getDate() + days);
+      setDueDate(toDateInput(calculated.getTime()));
+    } else {
+      setDueDate('');
+    }
+  };
+
+  const handleAddStore = async () => {
+    const name = newStore.trim();
+    if (!name || stores.includes(name)) return;
+    const nextStores = [...stores, name];
+    setStores(nextStores);
+    setPurchaseFrom(name);
+    setNewStore('');
+    await saveSettings({ ...(await getSettings()), stores: nextStores });
   };
 
   const filteredProducts = products.filter((p) => {
     const q = productSearch.toLowerCase();
     return p.code.toLowerCase().includes(q) || p.design.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
   }).slice(0, 10);
+
+  const filteredSuppliers = suppliers.filter((supplier) => supplier.active && supplier.name.toLowerCase().includes(supplierSearch.toLowerCase()));
+  const selectedSupplierDetails = suppliers.find((supplier) => supplier.id === selectedSupplier);
 
   const handleProductSelect = (p: Product) => {
     setSelProductId(p.id);
@@ -186,19 +229,25 @@ export function PurchasesPage() {
     const purchaseRate = Number(pPurchaseRate) || 0;
     const saleRate = Number(pSaleRate) || 0;
     const discountRate = Math.max(0, Number(pDiscount) || 0);
-    const extraDiscountRate = Math.max(0, Number(pExtraDiscount) || 0);
+    const discountRate2 = Math.max(0, Number(pDiscount2) || 0);
+    const discountRate3 = Math.max(0, Number(pDiscount3) || 0);
+    const extraDiscount = Math.max(0, Number(pExtraDiscount) || 0);
     const gstRate = Math.max(0, Number(pGst) || 0);
     if (mrp <= 0 || purchaseRate <= 0 || saleRate <= 0) { toast.error('MRP, purchase rate, and sale rate are mandatory'); return; }
+    const grossAmount = q * purchaseRate;
+    const afterDiscount1 = grossAmount * (1 - discountRate / 100);
+    const afterDiscount2 = afterDiscount1 * (1 - discountRate2 / 100);
+    const afterDiscounts = afterDiscount2 * (1 - discountRate3 / 100);
     setPItems([...pItems, {
       productId: product.id, productCode: product.code, productDesc: `${product.category} ${product.brand} ${product.design} ${product.size} ${product.color}`,
       category: product.category, brand: product.brand, size: product.size, color: product.color, unit: product.unit,
-      qty: q, rate: purchaseRate, mrp, purchaseRate, saleRate, discount: q * purchaseRate * discountRate / 100,
-      discountRate, extraDiscountRate, gstRate,
-      extraDiscount: (q * purchaseRate - q * purchaseRate * discountRate / 100) * extraDiscountRate / 100,
+      qty: q, rate: purchaseRate, mrp, purchaseRate, saleRate, discount: grossAmount - afterDiscounts,
+      discountRate, discountRate2, discountRate3, extraDiscountRate: 0, gstRate,
+      extraDiscount,
       gstAmount: 0,
       amount: q * purchaseRate,
     }]);
-    setSelProductId(''); setProductSearch(''); setPQty('1'); setPMrp('0'); setPPurchaseRate('0'); setPSaleRate('0'); setPDiscount('0'); setPExtraDiscount('0'); setPGst('0');
+    setSelProductId(''); setProductSearch(''); setPQty('1'); setPMrp('0'); setPPurchaseRate('0'); setPSaleRate('0'); setPDiscount('0'); setPDiscount2('0'); setPDiscount3('0'); setPExtraDiscount('0'); setPGst('0');
   };
 
   const subtotal = pItems.reduce((s, i) => s + i.qty * i.rate, 0);
@@ -278,17 +327,15 @@ export function PurchasesPage() {
                   <div className="grid gap-2"><Label>Bill No</Label><Input value={billNo} disabled className="bg-muted" /></div>
                   <div className="grid gap-2"><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
                   <div className="grid gap-2"><Label>Supplier <span className="text-destructive">*</span></Label>
-                    <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                      <SelectTrigger><SelectValue placeholder="Select supplier" /></SelectTrigger>
-                      <SelectContent>{suppliers.filter((s) => s.active).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <div className="flex gap-2"><div className="relative flex-1"><Input placeholder="Search or select supplier" value={supplierSearch} onChange={(event) => { setSupplierSearch(event.target.value); setShowSupplierDropdown(true); }} onFocus={() => setShowSupplierDropdown(true)} />{showSupplierDropdown && <div className="absolute z-50 mt-1 w-full rounded-lg border bg-card shadow-lg">{filteredSuppliers.map((supplier) => <button type="button" key={supplier.id} className="block w-full border-b p-2 text-left text-sm last:border-0 hover:bg-muted/50" onClick={() => { setSelectedSupplier(supplier.id); setSupplierSearch(supplier.name); setShowSupplierDropdown(false); }}>{supplier.name}</button>)}{filteredSuppliers.length === 0 && <p className="p-2 text-sm text-muted-foreground">No supplier found</p>}</div>}</div><Button type="button" variant="outline" onClick={() => openSupplierForm(null, true)}>+ Add</Button></div>
+                    {selectedSupplierDetails && <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-muted/40 p-2 text-xs text-muted-foreground"><span>Name: {selectedSupplierDetails.name}</span><span>Mobile: {selectedSupplierDetails.mobile || '-'}</span><span>GSTIN: {selectedSupplierDetails.gstNumber || '-'}</span><span>Address: {selectedSupplierDetails.address || selectedSupplierDetails.city || '-'}</span><span className="col-span-2">Outstanding: {formatCurrency(outstandingMap.get(selectedSupplierDetails.id) || 0)}</span></div>}
                   </div>
                 <div className="grid gap-2"><Label>Supplier Invoice No.</Label><Input value={supplierInvoiceNo} onChange={(e) => setSupplierInvoiceNo(e.target.value)} /></div>
-                <div className="grid gap-2"><Label>Invoice Date</Label><Input type="date" value={supplierInvoiceDate} onChange={(e) => setSupplierInvoiceDate(e.target.value)} /></div>
+                <div className="grid gap-2"><Label>Invoice Date</Label><Input type="date" value={supplierInvoiceDate} onChange={(e) => { setSupplierInvoiceDate(e.target.value); const days = Number(paymentTerms.match(/\d+/)?.[0] || 0); if (days > 0) { const calculated = new Date(fromDateInput(e.target.value)); calculated.setDate(calculated.getDate() + days); setDueDate(toDateInput(calculated.getTime())); } }} /></div>
                 <div className="grid gap-2"><Label>Purchase Type</Label><Select value={purchaseType} onValueChange={setPurchaseType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Regular">Regular</SelectItem><SelectItem value="Return">Return</SelectItem><SelectItem value="Import">Import</SelectItem></SelectContent></Select></div>
-                <div className="grid gap-2"><Label>Purchase From / Store</Label><Input value={purchaseFrom} onChange={(e) => setPurchaseFrom(e.target.value)} /></div>
-                <div className="grid gap-2"><Label>Payment Terms</Label><Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. 30 days" /></div>
-                <div className="grid gap-2"><Label>Due Date</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+                <div className="grid gap-2"><Label>Purchase From / Store</Label><div className="flex gap-2"><Select value={purchaseFrom} onValueChange={setPurchaseFrom}><SelectTrigger><SelectValue placeholder="Select store" /></SelectTrigger><SelectContent>{stores.map((store) => <SelectItem key={store} value={store}>{store}</SelectItem>)}</SelectContent></Select><Button type="button" variant="outline" onClick={() => { const name = window.prompt('New store name'); if (name) { setNewStore(name); } }}>+ Add</Button></div>{newStore && <div className="flex gap-2"><Input autoFocus value={newStore} onChange={(event) => setNewStore(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') handleAddStore(); }} /><Button type="button" onClick={handleAddStore}>Save</Button></div>}</div>
+                <div className="grid gap-2"><Label>Payment Terms</Label><Select value={paymentTerms} onValueChange={handleTermsChange}><SelectTrigger><SelectValue placeholder="Select terms" /></SelectTrigger><SelectContent>{['0 Days', '30 Days', '60 Days', '90 Days'].map((term) => <SelectItem key={term} value={term}>{term}</SelectItem>)}</SelectContent></Select></div>
+                <div className="grid gap-2"><Label>Due Date</Label><Input type="date" value={dueDate} readOnly className="bg-muted" /></div>
                 </div>
 
                 {/* Product Entry */}
@@ -306,15 +353,19 @@ export function PurchasesPage() {
                         ))}
                       </div>
                     )}
+                    {showProductDropdown && productSearch && filteredProducts.length === 0 && <div className="absolute z-50 mt-1 w-full rounded-lg border bg-card p-2 text-sm text-muted-foreground shadow-lg">No product found</div>}
                   </div>
+                  <Button type="button" variant="link" className="h-auto p-0" onClick={() => setProductFormOpen(true)}>+ Add New Product</Button>
                   {selProductId && (
-                    <div className="grid grid-cols-2 md:grid-cols-8 gap-2 items-end">
+                    <div className="grid grid-cols-2 md:grid-cols-10 gap-2 items-end">
                       <div className="grid gap-1"><Label className="text-xs">MRP *</Label><Input type="number" value={pMrp} onChange={(e) => setPMrp(e.target.value)} className="h-9" /></div>
                       <div className="grid gap-1"><Label className="text-xs">Purchase Rate *</Label><Input type="number" value={pPurchaseRate} onChange={(e) => setPPurchaseRate(e.target.value)} className="h-9" /></div>
                       <div className="grid gap-1"><Label className="text-xs">Sale Rate *</Label><Input type="number" value={pSaleRate} onChange={(e) => setPSaleRate(e.target.value)} className="h-9" /></div>
                       <div className="grid gap-1"><Label className="text-xs">Qty</Label><Input type="number" value={pQty} onChange={(e) => setPQty(e.target.value)} className="h-9" /></div>
-                      <div className="grid gap-1"><Label className="text-xs">Discount (%)</Label><Input type="number" min="0" value={pDiscount} onChange={(e) => setPDiscount(e.target.value)} className="h-9" /></div>
-                      <div className="grid gap-1"><Label className="text-xs">Extra Disc. (%)</Label><Input type="number" min="0" value={pExtraDiscount} onChange={(e) => setPExtraDiscount(e.target.value)} className="h-9" /></div>
+                      <div className="grid gap-1"><Label className="text-xs">Discount 1 (%)</Label><Input type="number" min="0" value={pDiscount} onChange={(e) => setPDiscount(e.target.value)} className="h-9" /></div>
+                      <div className="grid gap-1"><Label className="text-xs">Discount 2 (%)</Label><Input type="number" min="0" value={pDiscount2} onChange={(e) => setPDiscount2(e.target.value)} className="h-9" /></div>
+                      <div className="grid gap-1"><Label className="text-xs">Discount 3 (%)</Label><Input type="number" min="0" value={pDiscount3} onChange={(e) => setPDiscount3(e.target.value)} className="h-9" /></div>
+                      <div className="grid gap-1"><Label className="text-xs">Extra Disc. (₹)</Label><Input type="number" min="0" value={pExtraDiscount} onChange={(e) => setPExtraDiscount(e.target.value)} className="h-9" /></div>
                       <div className="grid gap-1"><Label className="text-xs">GST (%)</Label><Input type="number" min="0" value={pGst} onChange={(e) => setPGst(e.target.value)} className="h-9" /></div>
                       <Button onClick={handleAddItem}><Plus className="h-4 w-4 mr-1" />Add</Button>
                     </div>
@@ -325,13 +376,13 @@ export function PurchasesPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead><tr className="border-b bg-muted/50">
-                        <th className="text-left p-2">Product</th><th className="text-right p-2">Qty</th><th className="text-right p-2">Rate</th><th className="text-right p-2">Discount (%)</th><th className="text-right p-2">Extra (%)</th><th className="text-right p-2">GST (%)</th><th className="text-right p-2">Amount</th><th className="p-2"></th>
+                        <th className="text-left p-2">Product</th><th className="text-right p-2">Size</th><th className="text-right p-2">Qty</th><th className="text-right p-2">Rate</th><th className="text-right p-2">Disc. %</th><th className="text-right p-2">Extra Disc.</th><th className="text-right p-2">GST %</th><th className="text-right p-2">Amount</th><th className="p-2"></th>
                       </tr></thead>
                       <tbody>
                         {pItems.map((item, i) => (
                           <tr key={i} className="border-b">
-                            <td className="p-2">{item.productDesc}</td><td className="p-2 text-right">{item.qty} {item.unit}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.purchaseRate)}</td><td className="p-2 text-right">{item.discountRate}%</td><td className="p-2 text-right">{item.extraDiscountRate}%</td><td className="p-2 text-right">{item.gstRate}%</td>
+                            <td className="p-2">{item.productDesc}</td><td className="p-2 text-right">{item.size || '-'}</td><td className="p-2 text-right">{item.qty} {item.unit}</td>
+                            <td className="p-2 text-right">{formatCurrency(item.purchaseRate)}</td><td className="p-2 text-right">{item.discountRate}%</td><td className="p-2 text-right">{formatCurrency(item.extraDiscount || 0)}</td><td className="p-2 text-right">{item.gstRate}%</td>
                             <td className="p-2 text-right font-semibold">{formatCurrency(item.amount)}</td>
                             <td className="p-2"><Button variant="ghost" size="icon" onClick={() => setPItems(pItems.filter((_, idx) => idx !== i))}><X className="h-4 w-4 text-destructive" /></Button></td>
                           </tr>
@@ -355,8 +406,8 @@ export function PurchasesPage() {
 
                 <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                   <div className="text-sm space-y-1">
-                    <div>Subtotal: {formatCurrency(subtotal)}</div>
-                    <div>Item Discount: -{formatCurrency(itemDiscounts)}</div>
+                    <div>Gross Amount: {formatCurrency(subtotal)}</div>
+                    <div>Product Discount: -{formatCurrency(itemDiscounts)}</div>
                     <div>Extra Discount: -{formatCurrency(extraDiscounts)}</div>
                     <div>Taxable Amount: {formatCurrency(taxable)}</div>
                     <div>GST: {formatCurrency(tax)}</div>
@@ -364,7 +415,8 @@ export function PurchasesPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold">Grand Total: {formatCurrency(grandTotal)}</div>
-                    <div className="text-sm text-amber-600">Outstanding: {formatCurrency(outstanding)}</div>
+                    <div className="text-sm">Paid Amount: {formatCurrency(Number(paymentMade) || 0)}</div>
+                    <div className="text-sm font-semibold text-amber-600">Balance: {formatCurrency(outstanding)}</div>
                   </div>
                 </div>
                 <div className="flex gap-2 justify-end">
@@ -547,6 +599,7 @@ export function PurchasesPage() {
 
       <ConfirmDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)} title="Delete Supplier" description={`Delete "${deleteTarget?.name}"?`} confirmLabel="Delete" variant="destructive" onConfirm={handleDeleteSupplier} />
       <ConfirmDialog open={!!cancelPurchaseTarget} onOpenChange={(v) => !v && setCancelPurchaseTarget(null)} title="Cancel Purchase" description={`Cancel purchase ${cancelPurchaseTarget?.billNo}? Stock will be reduced.`} confirmLabel="Cancel Purchase" variant="destructive" onConfirm={handleCancelPurchase} />
+      <ProductFormDialog open={productFormOpen} onOpenChange={setProductFormOpen} product={null} onSaved={async () => { const refreshed = (await getProducts()).filter((product) => product.active); setProducts(refreshed); const newest = refreshed.sort((a, b) => b.createdAt - a.createdAt)[0]; if (newest) handleProductSelect(newest); }} />
     </div>
   );
 }
