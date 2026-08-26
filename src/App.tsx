@@ -6,7 +6,8 @@ import { seedDefaultMetadata } from '@/services/settingsService';
 import { Toaster } from '@/components/ui/sonner';
 import { Loader2 } from 'lucide-react';
 import { AuthPage } from '@/components/auth/AuthPage';
-import { getSession, onAuthStateChange } from '@/services/authService';
+import { ServiceStatusPage } from '@/components/auth/ServiceStatusPage';
+import { getSession, onAuthStateChange, signOut } from '@/services/authService';
 import { syncLocalData } from '@/services/cloudSyncService';
 import type { Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -80,16 +81,16 @@ function App() {
     (async () => {
       const currentSession = isSupabaseConfigured ? await getSession() : null;
       if (cancelled) return;
-      setSession(currentSession);
-      setAuthReady(true);
-      await seedDefaultMetadata();
       if (currentSession) {
         try {
-          await syncLocalData(currentSession);
+          await signOut();
         } catch (error) {
-          toast.error(`Cloud sync failed: ${syncErrorMessage(error)}`);
+          toast.error(`Unable to clear the existing session: ${syncErrorMessage(error)}`);
         }
       }
+      setSession(null);
+      setAuthReady(true);
+      await seedDefaultMetadata();
     })();
 
     const authSubscription = onAuthStateChange((_event, nextSession) => {
@@ -123,6 +124,9 @@ function App() {
 
   if (!authReady) return <PageLoader />;
   if (isSupabaseConfigured && !session) return <AuthPage />;
+  if (session?.user.app_metadata?.service_status === 'suspended') {
+    return <ServiceStatusPage email={session.user.email} />;
+  }
 
   const renderPage = () => {
     switch (currentPage) {
