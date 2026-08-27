@@ -9,8 +9,9 @@ export async function getSession(): Promise<Session | null> {
 }
 
 export async function signIn(email: string, password: string): Promise<void> {
-  void [email, password];
-  throw new Error('cloud limit exceeded kindly upgrade to login the ERP SYSTEM');
+  if (!supabase) throw new Error('Cloud configuration is missing');
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
 }
 
 export async function signUp(email: string, password: string): Promise<boolean> {
