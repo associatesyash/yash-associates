@@ -151,6 +151,10 @@ export async function clearAllBusinessData(session: Session | null): Promise<voi
 async function runSync(session: Session): Promise<{ uploaded: number; downloaded: number }> {
   const client = supabase;
   if (!client || !session.user) return { uploaded: 0, downloaded: 0 };
+  const { data: authData, error: authError } = await client.auth.getSession();
+  if (authError) throw authError;
+  if (!authData.session?.user) throw new Error('Your cloud session has expired. Please sign in again.');
+  session = authData.session;
   let uploaded = 0;
   let downloaded = 0;
   const resetAt = Number(localStorage.getItem(RESET_COOLDOWN_KEY) || 0);

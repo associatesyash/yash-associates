@@ -338,6 +338,7 @@ begin
     'stock_movements', 'expenses', 'settings', 'audit_logs'
   ] loop
     execute format('alter table public.%I add column if not exists owner_id uuid references auth.users(id) default auth.uid()', table_name);
+    execute format('alter table public.%I alter column owner_id set default auth.uid()', table_name);
     execute format('drop policy if exists %I on public.%I', table_name || '_owner_select', table_name);
     execute format('drop policy if exists %I on public.%I', table_name || '_owner_insert', table_name);
     execute format('drop policy if exists %I on public.%I', table_name || '_owner_update', table_name);
@@ -348,3 +349,22 @@ begin
     execute format('create policy %I on public.%I for delete to authenticated using (owner_id = auth.uid())', table_name || '_owner_delete', table_name);
   end loop;
 end $$;
+
+-- Existing rows created before authentication have a NULL owner and cannot be
+-- updated through RLS. Run this once after replacing the UUID with the account
+-- that should own the existing business data.
+-- do $$
+-- declare
+--   legacy_owner_id uuid := 'YOUR_AUTH_USER_UUID';
+--   table_name text;
+-- begin
+--   foreach table_name in array array[
+--     'parties', 'products', 'suppliers', 'categories', 'brands', 'invoices',
+--     'invoice_items', 'payments', 'payment_allocations', 'purchases',
+--     'purchase_items', 'supplier_payments', 'returns', 'return_items',
+--     'stock_movements', 'expenses', 'settings', 'audit_logs'
+--   ] loop
+--     execute format('update public.%I set owner_id = $1 where owner_id is null', table_name)
+--       using legacy_owner_id;
+--   end loop;
+-- end $$;

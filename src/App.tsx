@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { Loader2 } from 'lucide-react';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { ServiceStatusPage } from '@/components/auth/ServiceStatusPage';
-import { getSession, onAuthStateChange, signOut } from '@/services/authService';
+import { getSession, onAuthStateChange } from '@/services/authService';
 import { syncLocalData } from '@/services/cloudSyncService';
 import type { Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -81,16 +81,14 @@ function App() {
     (async () => {
       const currentSession = isSupabaseConfigured ? await getSession() : null;
       if (cancelled) return;
-      if (currentSession) {
-        try {
-          await signOut();
-        } catch (error) {
-          toast.error(`Unable to clear the existing session: ${syncErrorMessage(error)}`);
-        }
-      }
-      setSession(null);
+      setSession(currentSession);
       setAuthReady(true);
       await seedDefaultMetadata();
+      if (currentSession) {
+        await syncLocalData(currentSession).catch((error) => {
+          toast.error(`Cloud sync failed: ${syncErrorMessage(error)}`);
+        });
+      }
     })();
 
     const authSubscription = onAuthStateChange((_event, nextSession) => {
