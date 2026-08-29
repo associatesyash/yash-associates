@@ -26,6 +26,7 @@ export interface InvoiceDraft {
   }[];
   discountAmount: number;
   billDiscountRate?: number;
+  extraDiscountAmount?: number;
   notes: string;
   salesperson?: string;
   paymentReceived: number;
@@ -50,7 +51,8 @@ function calcInvoiceTotals(draft: InvoiceDraft, settings: Settings) {
   const itemDiscounts = draft.items.reduce((s, i) => s + i.discount, 0);
   const afterItemDiscount = subtotal - itemDiscounts;
   const billDiscount = draft.discountAmount || 0;
-  const taxableAmount = afterItemDiscount - billDiscount;
+  const extraDiscountAmount = draft.extraDiscountAmount || 0;
+  const taxableAmount = Math.max(0, afterItemDiscount - billDiscount - extraDiscountAmount);
   const taxAmount = settings.taxEnabled ? Math.round(taxableAmount * settings.taxRate) / 100 : 0;
   const beforeRound = taxableAmount + taxAmount;
   const grandTotal = Math.round(beforeRound);
@@ -59,7 +61,7 @@ function calcInvoiceTotals(draft: InvoiceDraft, settings: Settings) {
   const outstanding = grandTotal - paymentReceived;
   const status: 'Paid' | 'Partial' | 'Due' =
     outstanding <= 0 ? 'Paid' : paymentReceived > 0 ? 'Partial' : 'Due';
-  return { subtotal, itemDiscounts, taxAmount, roundOff, grandTotal, paymentReceived, outstanding, status };
+  return { subtotal, itemDiscounts, billDiscount, extraDiscountAmount, taxAmount, roundOff, grandTotal, paymentReceived, outstanding, status };
 }
 
 export async function createInvoice(draft: InvoiceDraft): Promise<string> {
@@ -91,8 +93,9 @@ export async function createInvoice(draft: InvoiceDraft): Promise<string> {
     partyId: draft.partyId,
     partyName: draft.partyName,
     subtotal: totals.subtotal,
-    discountAmount: draft.discountAmount + totals.itemDiscounts,
+    discountAmount: totals.itemDiscounts + totals.billDiscount + totals.extraDiscountAmount,
     billDiscountRate: draft.billDiscountRate,
+    extraDiscountAmount: totals.extraDiscountAmount,
     taxAmount: totals.taxAmount,
     roundOff: totals.roundOff,
     grandTotal: totals.grandTotal,

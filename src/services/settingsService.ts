@@ -17,7 +17,22 @@ export async function getSettings(): Promise<Settings> {
     await db.settings.put(initial);
     return { ...DEFAULT_SETTINGS };
   }
-  return { ...DEFAULT_SETTINGS, ...(row.value as Partial<Settings>) };
+
+  const saved = { ...DEFAULT_SETTINGS, ...(row.value as Partial<Settings>) };
+  const needsBusinessRepair = !saved.gstNumber || saved.gstNumber === '24AABCU9603R1ZX' || saved.address.includes('Main Market') || saved.address.includes('Near Main Market') || saved.address.includes('Market Road');
+
+  if (needsBusinessRepair) {
+    const repaired = {
+      ...saved,
+      address: DEFAULT_SETTINGS.address,
+      gstNumber: DEFAULT_SETTINGS.gstNumber,
+      businessName: DEFAULT_SETTINGS.businessName,
+    };
+    await db.settings.put({ ...row, value: repaired, updatedAt: now() });
+    return repaired;
+  }
+
+  return saved;
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

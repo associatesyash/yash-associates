@@ -48,6 +48,7 @@ export function SalesPage() {
   const [partyOutstanding, setPartyOutstanding] = useState(0);
   const [items, setItems] = useState<BillItem[]>([]);
   const [billDiscountRate, setBillDiscountRate] = useState('0');
+  const [extraDiscount, setExtraDiscount] = useState('0');
   const [paymentReceived, setPaymentReceived] = useState('0');
   const [paymentMode, setPaymentMode] = useState('Cash');
   const [paymentRef, setPaymentRef] = useState('');
@@ -94,7 +95,9 @@ export function SalesPage() {
   const itemDiscounts = items.reduce((s, i) => s + i.discount, 0);
   const billDiscountRateValue = Number(billDiscountRate) || 0;
   const billDiscount = Math.max(0, (subtotal - itemDiscounts) * billDiscountRateValue / 100);
-  const taxableAmount = subtotal - itemDiscounts - billDiscount;
+  const extraDiscountRateValue = Number(extraDiscount) || 0;
+  const extraDiscountAmount = Math.max(0, (subtotal - itemDiscounts - billDiscount) * extraDiscountRateValue / 100);
+  const taxableAmount = Math.max(0, subtotal - itemDiscounts - billDiscount - extraDiscountAmount);
   const taxAmount = settings?.taxEnabled ? Math.round(taxableAmount * settings.taxRate) / 100 : 0;
   const beforeRound = taxableAmount + taxAmount;
   const grandTotal = Math.round(beforeRound);
@@ -168,6 +171,7 @@ export function SalesPage() {
         })),
         discountAmount: billDiscount,
         billDiscountRate: billDiscountRateValue,
+        extraDiscountAmount,
         notes,
         salesperson,
         paymentReceived: payment,
@@ -176,7 +180,7 @@ export function SalesPage() {
       });
       toast.success(`Invoice ${invoiceNo} created successfully`);
       // Reset form
-      setItems([]); setBillDiscountRate('0'); setPaymentReceived('0'); setPaymentRef(''); setNotes(''); setSalesperson(''); setSelectedParty('');
+      setItems([]); setBillDiscountRate('0'); setExtraDiscount('0'); setPaymentReceived('0'); setPaymentRef(''); setNotes(''); setSalesperson(''); setSelectedParty('');
       init();
     } catch (e: any) {
       toast.error(e.message || 'Failed to create invoice');
@@ -331,9 +335,14 @@ export function SalesPage() {
                   <span className="text-muted-foreground">Bill Discount (%)</span>
                   <div className="relative"><Input type="number" min="0" value={billDiscountRate} onChange={(e) => setBillDiscountRate(e.target.value)} className="w-24 h-8 pr-6 text-right" /><span className="absolute right-2 top-1.5 text-xs text-muted-foreground">%</span></div>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Extra Discount (%)</span>
+                  <div className="relative"><Input type="number" min="0" value={extraDiscount} onChange={(e) => setExtraDiscount(e.target.value)} className="w-24 h-8 pr-6 text-right" /><span className="absolute right-2 top-1.5 text-xs text-muted-foreground">%</span></div>
+                </div>
                 {settings?.taxEnabled && (
                   <div className="flex justify-between"><span className="text-muted-foreground">{settings.taxName} ({settings.taxRate}%)</span><span>{formatCurrency(taxAmount)}</span></div>
                 )}
+                <div className="flex justify-between"><span className="text-muted-foreground">Extra Discount</span><span>-{formatCurrency(extraDiscountAmount)}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Round Off</span><span>{formatCurrency(roundOff)}</span></div>
                 <div className="flex justify-between font-bold text-base border-t pt-2"><span>Grand Total</span><span>{formatCurrency(grandTotal)}</span></div>
               </div>
@@ -380,7 +389,7 @@ export function SalesPage() {
           </Card>
 
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => { setItems([]); setSelectedParty(''); setBillDiscountRate('0'); setPaymentReceived('0'); setPaymentRef(''); setNotes(''); setSalesperson(''); }}>
+            <Button variant="outline" className="flex-1" onClick={() => { setItems([]); setSelectedParty(''); setBillDiscountRate('0'); setExtraDiscount('0'); setPaymentReceived('0'); setPaymentRef(''); setNotes(''); setSalesperson(''); }}>
               <X className="h-4 w-4 mr-1" />Clear
             </Button>
             <Button className="flex-1" onClick={() => setConfirmOpen(true)} disabled={loading || items.length === 0}>

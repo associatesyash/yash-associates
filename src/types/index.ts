@@ -40,6 +40,7 @@ export interface Invoice extends BaseEntity {
   subtotal: number;
   discountAmount: number;
   billDiscountRate?: number;
+  extraDiscountAmount?: number;
   taxAmount: number;
   roundOff: number;
   grandTotal: number;
@@ -280,10 +281,10 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   businessName: 'YASH ASSOCIATES',
-  address: '',
+  address: '942/W-1-75, Awas Vikas, Gurudwara Road, Janakpuri, Bareilly, Uttar Pradesh 243122',
   mobile: '',
   email: '',
-  gstNumber: '',
+  gstNumber: '09NYOPS9164J1Z1',
   taxEnabled: false,
   taxRate: 0,
   taxName: 'GST',

@@ -56,6 +56,7 @@ alter table public.purchase_items add column if not exists purchase_rate numeric
 alter table public.purchase_items add column if not exists sale_rate numeric(14,2) not null default 0;
 
 alter table public.invoices add column if not exists bill_discount_rate numeric(8,3);
+alter table public.invoices add column if not exists extra_discount_amount numeric(14,2) default 0;
 alter table public.invoices add column if not exists salesperson text;
 alter table public.invoice_items add column if not exists discount_rate numeric(8,3);
 alter table public.purchases add column if not exists bill_discount_rate numeric(8,3);

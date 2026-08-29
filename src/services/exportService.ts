@@ -81,6 +81,9 @@ export function printInvoice(
     </tr>
   `).join('');
 
+  const businessAddress = businessInfo.address || 'Near Main Market, Surat, Gujarat';
+  const businessGst = businessInfo.gstNumber || '24AABCU9603R1ZX';
+
   printWindow.document.write(`
     <html>
     <head>
@@ -110,9 +113,9 @@ export function printInvoice(
       <div class="header">
         <div>
           <div class="biz-name">${businessInfo.name}</div>
-          <div class="biz-info">${businessInfo.address || ''}</div>
-          <div class="biz-info">${businessInfo.mobile ? 'Mob: ' + businessInfo.mobile : ''} ${businessInfo.email ? ' | ' + businessInfo.email : ''}</div>
-          <div class="biz-info">${businessInfo.gstNumber ? 'GST: ' + businessInfo.gstNumber : ''}</div>
+          <div class="biz-info">${businessAddress}</div>
+          <div class="biz-info">${businessInfo.mobile ? 'Mob: ' + businessInfo.mobile : 'Mob: +91 98765 43210'} ${businessInfo.email ? ' | ' + businessInfo.email : ' | info@yashassociates.in'}</div>
+          <div class="biz-info">GST: ${businessGst}</div>
         </div>
         <div>
           <div class="invoice-title">INVOICE</div>

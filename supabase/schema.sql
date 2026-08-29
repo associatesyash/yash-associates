@@ -78,6 +78,7 @@ create table if not exists public.invoices (
   subtotal numeric(14,2) not null default 0,
   discount_amount numeric(14,2) not null default 0,
   bill_discount_rate numeric(8,3),
+  extra_discount_amount numeric(14,2) not null default 0,
   tax_amount numeric(14,2) not null default 0,
   round_off numeric(14,2) not null default 0,
   grand_total numeric(14,2) not null default 0,
