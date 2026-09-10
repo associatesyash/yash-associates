@@ -34,7 +34,7 @@ const ReturnsPage = lazy(() => import('@/pages/ReturnsPage').then(m => ({ defaul
 const ExpensesPage = lazy(() => import('@/pages/ExpensesPage').then(m => ({ default: m.ExpensesPage })));
 const ReportsPage = lazy(() => import('@/pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const AUTH_STARTUP_TIMEOUT_MS = 8000;
+const AUTH_STARTUP_TIMEOUT_MS = 1500;
 
 function getSessionWithTimeout(): Promise<Session | null> {
   return Promise.race([
