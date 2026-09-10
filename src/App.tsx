@@ -34,6 +34,16 @@ const ReturnsPage = lazy(() => import('@/pages/ReturnsPage').then(m => ({ defaul
 const ExpensesPage = lazy(() => import('@/pages/ExpensesPage').then(m => ({ default: m.ExpensesPage })));
 const ReportsPage = lazy(() => import('@/pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const AUTH_STARTUP_TIMEOUT_MS = 8000;
+
+function getSessionWithTimeout(): Promise<Session | null> {
+  return Promise.race([
+    getSession(),
+    new Promise<Session | null>((_, reject) => {
+      window.setTimeout(() => reject(new Error('Cloud authentication timed out')), AUTH_STARTUP_TIMEOUT_MS);
+    }),
+  ]);
+}
 
 function PageLoader() {
   return (
@@ -82,10 +92,10 @@ function App() {
     (async () => {
       let currentSession: Session | null = null;
       try {
-        currentSession = isSupabaseConfigured ? await getSession() : null;
+        currentSession = isSupabaseConfigured ? await getSessionWithTimeout() : null;
       } catch (error) {
         supabase?.auth.stopAutoRefresh();
-        await supabase?.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        void supabase?.auth.signOut({ scope: 'local' }).catch(() => undefined);
         setCloudUnavailable(true);
         console.warn('Cloud authentication is unavailable; continuing in local mode.', error);
       }
