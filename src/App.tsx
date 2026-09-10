@@ -10,7 +10,7 @@ import { ServiceStatusPage } from '@/components/auth/ServiceStatusPage';
 import { getSession, onAuthStateChange } from '@/services/authService';
 import { syncLocalData } from '@/services/cloudSyncService';
 import type { Session } from '@supabase/supabase-js';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 function syncErrorMessage(error: unknown): string {
@@ -67,6 +67,7 @@ function App() {
   const { currentPage, pageParam, setOnline } = useUIStore();
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const [cloudUnavailable, setCloudUnavailable] = useState(false);
   const sessionRef = useRef<Session | null>(null);
   sessionRef.current = session;
 
@@ -79,7 +80,15 @@ function App() {
     let cancelled = false;
     // Initialize local metadata, then authenticate and reconcile local/cloud records.
     (async () => {
-      const currentSession = isSupabaseConfigured ? await getSession() : null;
+      let currentSession: Session | null = null;
+      try {
+        currentSession = isSupabaseConfigured ? await getSession() : null;
+      } catch (error) {
+        supabase?.auth.stopAutoRefresh();
+        await supabase?.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        setCloudUnavailable(true);
+        console.warn('Cloud authentication is unavailable; continuing in local mode.', error);
+      }
       if (cancelled) return;
       setSession(currentSession);
       setAuthReady(true);
@@ -121,7 +130,7 @@ function App() {
   }, [setOnline]);
 
   if (!authReady) return <PageLoader />;
-  if (isSupabaseConfigured && !session) return <AuthPage />;
+  if (isSupabaseConfigured && !session && !cloudUnavailable) return <AuthPage />;
   if (session?.user.app_metadata?.service_status === 'suspended') {
     return <ServiceStatusPage email={session.user.email} />;
   }
